@@ -1,26 +1,42 @@
 import React, { useEffect, useState } from "react";
-import { getPredictionHistory } from "@/lib/cloudLearning";
+import { useTranslation } from "react-i18next";
+import {
+  getPredictionHistory,
+  getDistinctCategories,
+} from "@/lib/cloudLearning";
 import type { PredictionResult } from "@/lib/prediction";
 import { cn } from "@/lib/utils";
 
 export function HistoryTab() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<PredictionResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filterRound, setFilterRound] = useState("");
   const [filterTeam, setFilterTeam] = useState("");
-  const [filterResult, setFilterResult] = useState<"all" | "correct" | "incorrect">("all");
+  const [filterResult, setFilterResult] = useState<
+    "all" | "correct" | "incorrect"
+  >("all");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [filterCategory, setFilterCategory] = useState<string>("auto");
 
   useEffect(() => {
+    getDistinctCategories().then(setCategories);
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
     const activeCategory =
-      typeof window !== "undefined"
-        ? localStorage.getItem("sporty.eventCategoryId") || undefined
-        : undefined;
+      filterCategory === "auto"
+        ? typeof window !== "undefined"
+          ? localStorage.getItem("sporty.eventCategoryId") || undefined
+          : undefined
+        : filterCategory || undefined;
     getPredictionHistory(activeCategory).then((h) => {
       setItems(h);
       setLoading(false);
     });
-  }, []);
+  }, [filterCategory]);
 
   const filteredItems = items.filter((item) => {
     if (filterRound && item.roundNumber?.toString() !== filterRound) return false;
@@ -52,7 +68,7 @@ export function HistoryTab() {
   if (loading) {
     return (
       <div className="p-8 text-center font-mono text-xs uppercase tracking-widest text-muted-foreground">
-        Loading ledger…
+        {t("history.loading")}
       </div>
     );
   }
@@ -61,7 +77,7 @@ export function HistoryTab() {
     return (
       <div className="border border-border bg-panel p-8 text-center">
         <p className="font-mono text-sm text-muted-foreground">
-          No predictions logged yet.
+          {t("history.empty")}
         </p>
       </div>
     );
@@ -72,35 +88,52 @@ export function HistoryTab() {
       <div className="flex flex-wrap items-end gap-2 border border-border bg-panel p-3">
         <div className="flex flex-col gap-1">
           <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Round
+            {t("history.season")}
           </label>
           <select
-            value={filterRound}
-            onChange={(e) => setFilterRound(e.target.value)}
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
             className="border border-border bg-background px-3 py-1.5 font-mono text-sm"
           >
-            <option value="">All rounds</option>
-            {rounds.map((r) => (
-              <option key={r} value={r}>
-                Round {r}
+            <option value="auto">{t("history.activeSeason")}</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
               </option>
             ))}
           </select>
         </div>
         <div className="flex flex-col gap-1">
           <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Team
+            {t("history.round")}
+          </label>
+          <select
+            value={filterRound}
+            onChange={(e) => setFilterRound(e.target.value)}
+            className="border border-border bg-background px-3 py-1.5 font-mono text-sm"
+          >
+            <option value="">{t("history.allRounds")}</option>
+            {rounds.map((r) => (
+              <option key={r} value={r}>
+                {t("history.round")} {r}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            {t("history.team")}
           </label>
           <input
             value={filterTeam}
             onChange={(e) => setFilterTeam(e.target.value)}
-            placeholder="Filter by team..."
+            placeholder={t("history.teamPlaceholder")}
             className="w-48 border border-border bg-background px-3 py-1.5 font-mono text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
           <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Result
+            {t("history.result")}
           </label>
           <select
             value={filterResult}
@@ -109,9 +142,9 @@ export function HistoryTab() {
             }
             className="border border-border bg-background px-3 py-1.5 font-mono text-sm"
           >
-            <option value="all">All</option>
-            <option value="correct">Correct</option>
-            <option value="incorrect">Incorrect</option>
+            <option value="all">{t("history.all")}</option>
+            <option value="correct">{t("history.correct")}</option>
+            <option value="incorrect">{t("history.incorrect")}</option>
           </select>
         </div>
         <button
@@ -120,15 +153,16 @@ export function HistoryTab() {
             setFilterRound("");
             setFilterTeam("");
             setFilterResult("all");
+            setFilterCategory("auto");
           }}
           className="ml-auto font-mono text-xs uppercase text-cyan hover:opacity-70"
         >
-          Clear filters
+          {t("history.clear")}
         </button>
       </div>
 
       <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-        {filteredItems.length} prediction{filteredItems.length > 1 ? "s" : ""} shown
+        {t("history.shown", { count: filteredItems.length })}
       </div>
 
       {filteredItems.map((r) => {
@@ -136,9 +170,13 @@ export function HistoryTab() {
         const open = expanded === id;
         const date = new Date(r.timestamp);
         const matchDate = r.matchTime ? new Date(r.matchTime) : null;
-        const realScore = r.validated ? `${r.realScoreHome}-${r.realScoreAway}` : null;
+        const realScore = r.validated
+          ? `${r.realScoreHome}-${r.realScoreAway}`
+          : null;
         const realWinner =
-          r.validated && r.realScoreHome !== undefined && r.realScoreAway !== undefined
+          r.validated &&
+          r.realScoreHome !== undefined &&
+          r.realScoreAway !== undefined
             ? r.realScoreHome > r.realScoreAway
               ? "1"
               : r.realScoreAway > r.realScoreHome
@@ -172,7 +210,7 @@ export function HistoryTab() {
                   </span>
                 )}
                 <span className="text-sm font-medium text-foreground">
-                  {r.homeTeam} vs {r.awayTeam}
+                  {r.homeTeam} {t("history.vs")} {r.awayTeam}
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -201,13 +239,15 @@ export function HistoryTab() {
                 <div className="grid grid-cols-3 gap-2">
                   <div className="border border-border bg-background p-2">
                     <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
-                      Predicted winner
+                      {t("history.predictedWinner")}
                     </div>
-                    <div className="text-xs font-bold text-foreground">{r.winner}</div>
+                    <div className="text-xs font-bold text-foreground">
+                      {r.winner}
+                    </div>
                   </div>
                   <div className="border border-border bg-background p-2">
                     <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
-                      Confidence
+                      {t("history.confidence")}
                     </div>
                     <div className="tabular-nums font-mono text-xs font-bold text-foreground">
                       {r.confidence.toFixed(1)}%
@@ -215,7 +255,7 @@ export function HistoryTab() {
                   </div>
                   <div className="border border-border bg-background p-2">
                     <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
-                      Odds 1/X/2
+                      {t("history.odds")}
                     </div>
                     <div className="tabular-nums font-mono text-xs font-bold text-foreground">
                       {r.oddsHome}/{r.oddsDraw}/{r.oddsAway}
@@ -226,7 +266,7 @@ export function HistoryTab() {
                 {r.topScores.length > 0 && (
                   <div>
                     <div className="mb-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                      Top 3 predicted scores
+                      {t("history.topScores")}
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {r.topScores.map((s, i) => {
