@@ -1,0 +1,264 @@
+import { TEAMS } from "./prediction";
+
+function norm(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+const TEAM_NORMS = TEAMS.map((t) => ({ team: t, key: norm(t) }));
+
+export function matchTeam(input: string): string | null {
+  if (!input) return null;
+  const n = norm(input);
+  for (const { team, key } of TEAM_NORMS) if (key === n) return team;
+  for (const { team, key } of TEAM_NORMS) if (n.includes(key) || key.includes(n)) return team;
+
+  let best: { team: string; score: number } | null = null;
+  for (const { team, key } of TEAM_NORMS) {
+    let common = 0;
+    for (let i = 0; i < Math.min(n.length, key.length); i++) if (n[i] === key[i]) common++;
+    const score = common / Math.max(n.length, key.length);
+    if (!best || score > best.score) best = { team, score };
+  }
+  return best && best.score >= 0.5 ? best.team : null;
+}
+
+export interface SportyMatch {
+  matchId: number;
+  homeTeam: string;
+  awayTeam: string;
+  oddsHome: string;
+  oddsDraw: string;
+  oddsAway: string;
+  rawHome: string;
+  rawAway: string;
+  matched: boolean;
+  finalScoreHome?: number;
+  finalScoreAway?: number;
+  played: boolean;
+  matchTime?: string;
+}
+
+interface ApiBetItem {
+  shortName?: string;
+  odds?: number;
+}
+interface ApiBetType {
+  name?: string;
+  eventBetTypeItems?: ApiBetItem[];
+}
+interface ApiEvent {
+  id?: number;
+  homeTeam?: { name?: string } | string;
+  awayTeam?: { name?: string } | string;
+  home?: string;
+  away?: string;
+  eventBetTypes?: ApiBetType[];
+  markets?: ApiBetType[];
+  startDate?: string;
+}
+interface ApiGoal {
+  minute?: number;
+  homeScore?: number;
+  awayScore?: number;
+}
+interface ApiPlayoutMatch {
+  id?: number;
+  goals?: ApiGoal[];
+}
+
+function teamName(v: unknown): string {
+  if (!v) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "object" && v && "name" in v)
+    return String((v as { name: unknown }).name ?? "");
+  return "";
+}
+
+function extract1X2(ev: ApiEvent): { h: number; d: number; a: number } | null {
+  const types = ev.eventBetTypes ?? ev.markets ?? [];
+  for (const m of types) {
+    if ((m.name ?? "").toLowerCase().trim() !== "1x2") continue;
+    const items = m.eventBetTypeItems ?? [];
+    let h = 0,
+      d = 0,
+      a = 0;
+    for (const o of items) {
+      const lbl = (o.shortName ?? "").toUpperCase();
+      const price = Number(o.odds ?? 0);
+      if (lbl === "1") h = price;
+      else if (lbl === "X") d = price;
+      else if (lbl === "2") a = price;
+    }
+    if (h > 1 && d > 1 && a > 1) return { h, d, a };
+  }
+  return null;
+}
+
+function finalFromGoals(goals: ApiGoal[] | undefined): { h: number; a: number } | null {
+  if (!goals) return null;
+  if (goals.length === 0) return { h: 0, a: 0 };
+  const last = goals[goals.length - 1];
+  if (typeof last.homeScore === "number" && typeof last.awayScore === "number") {
+    return { h: Math.round(last.homeScore), a: Math.round(last.awayScore) };
+  }
+  return null;
+}
+
+export function combineRoundData(
+  matchesJson: unknown,
+  playoutJson: unknown,
+): SportyMatch[] {
+  const md = matchesJson as { round?: { matches?: ApiEvent[] } } | null;
+  const events = md?.round?.matches ?? [];
+
+  const pd = playoutJson as { matches?: ApiPlayoutMatch[] } | null;
+  const playoutMap = new Map<number, ApiGoal[]>();
+  for (const pm of pd?.matches ?? []) {
+    if (typeof pm.id === "number") playoutMap.set(pm.id, pm.goals ?? []);
+  }
+
+  const out: SportyMatch[] = [];
+  for (const ev of events) {
+    const rawHome = teamName(ev.homeTeam) || ev.home || "";
+    const rawAway = teamName(ev.awayTeam) || ev.away || "";
+    if (!rawHome || !rawAway) continue;
+    const odds = extract1X2(ev);
+    const mh = matchTeam(rawHome);
+    const ma = matchTeam(rawAway);
+    const mid = ev.id ?? 0;
+    const goals = playoutMap.get(mid);
+    const score = finalFromGoals(goals);
+
+    out.push({
+      matchId: mid,
+      homeTeam: mh ?? rawHome,
+      awayTeam: ma ?? rawAway,
+      oddsHome: odds ? odds.h.toFixed(2) : "",
+      oddsDraw: odds ? odds.d.toFixed(2) : "",
+      oddsAway: odds ? odds.a.toFixed(2) : "",
+      rawHome,
+      rawAway,
+      matched: !!(mh && ma),
+      finalScoreHome: score?.h,
+      finalScoreAway: score?.a,
+      played: !!score,
+      matchTime: ev.startDate,
+    });
+  }
+  return out;
+}
+
+interface ApiEnvelope {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+  eventCategoryId?: string;
+}
+
+async function callProxy(params: Record<string, string>): Promise<ApiEnvelope> {
+  const qs = new URLSearchParams(params).toString();
+  const r = await fetch(`/api/public/sporty-round?${qs}`);
+  const json = (await r.json()) as ApiEnvelope;
+  if (!r.ok || !json.success) throw new Error(json.error ?? `API ${r.status}`);
+  return json;
+}
+
+export async function discoverCategory(leagueId: string): Promise<string> {
+  const env = await callProxy({ action: "discover", leagueId });
+  const data = env.data as { eventCategoryId?: string } | undefined;
+  if (!data?.eventCategoryId) throw new Error("eventCategoryId not found");
+  return data.eventCategoryId;
+}
+
+export async function fetchRound(
+  leagueId: string,
+  round: string,
+  eventCategoryId?: string,
+): Promise<{ matches: SportyMatch[]; eventCategoryId: string }> {
+  const params: Record<string, string> = { action: "results", leagueId, round };
+  if (eventCategoryId) params.eventCategoryId = eventCategoryId;
+  const env = await callProxy(params);
+  const data = env.data as { matches?: unknown; playout?: unknown } | undefined;
+  const matches = combineRoundData(data?.matches, data?.playout);
+  return { matches, eventCategoryId: env.eventCategoryId ?? eventCategoryId ?? "" };
+}
+
+export interface RoundStatus {
+  round: number;
+  total: number;
+  played: number;
+}
+
+export async function scanRoundStatuses(
+  leagueId: string,
+  eventCategoryId: string,
+  maxRound = 38,
+  concurrency = 10,
+): Promise<RoundStatus[]> {
+  const out: RoundStatus[] = [];
+  const rounds = Array.from({ length: maxRound }, (_, i) => i + 1);
+
+  const fetchOne = async (r: number): Promise<RoundStatus | null> => {
+    try {
+      const { matches } = await fetchRound(leagueId, String(r), eventCategoryId);
+      return {
+        round: r,
+        total: matches.length,
+        played: matches.filter((m) => m.played).length,
+      };
+    } catch {
+      return { round: r, total: 0, played: 0 };
+    }
+  };
+
+  const chunks: number[][] = [];
+  for (let i = 0; i < rounds.length; i += concurrency) {
+    chunks.push(rounds.slice(i, i + concurrency));
+  }
+
+  for (const chunk of chunks) {
+    const results = await Promise.all(chunk.map(fetchOne));
+    out.push(...results.filter((r): r is RoundStatus => r !== null));
+  }
+
+  return out.sort((a, b) => a.round - b.round);
+}
+
+export async function fetchAllPlayedMatches(
+  leagueId: string,
+  eventCategoryId: string,
+  maxRound = 38,
+  concurrency = 10,
+): Promise<{ round: number; matches: SportyMatch[] }[]> {
+  const out: { round: number; matches: SportyMatch[] }[] = [];
+  const rounds = Array.from({ length: maxRound }, (_, i) => i + 1);
+
+  const fetchOne = async (
+    r: number,
+  ): Promise<{ round: number; matches: SportyMatch[] } | null> => {
+    try {
+      const { matches } = await fetchRound(leagueId, String(r), eventCategoryId);
+      const played = matches.filter((m) => m.played);
+      if (played.length) return { round: r, matches: played };
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const chunks: number[][] = [];
+  for (let i = 0; i < rounds.length; i += concurrency) {
+    chunks.push(rounds.slice(i, i + concurrency));
+  }
+
+  for (const chunk of chunks) {
+    const results = await Promise.all(chunk.map(fetchOne));
+    out.push(
+      ...results.filter(
+        (r): r is { round: number; matches: SportyMatch[] } => r !== null,
+      ),
+    );
+  }
+
+  return out.sort((a, b) => a.round - b.round);
+}
