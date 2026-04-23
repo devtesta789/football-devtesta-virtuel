@@ -10,6 +10,9 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LoginScreen } from "@/components/LoginScreen";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useTranslation } from "react-i18next";
+import "@/i18n";
 
 import appCss from "../styles.css?url";
 
@@ -36,6 +39,7 @@ function NotFoundComponent() {
 
 function AppContent() {
   const { isAuthenticated, logout } = useAuth();
+  const { t } = useTranslation();
 
   if (!isAuthenticated) {
     return <LoginScreen />;
@@ -48,18 +52,19 @@ function AppContent() {
           <div className="flex items-center gap-2">
             <span className="size-1.5 animate-pulse bg-lime" />
             <span className="font-mono text-xs font-bold tracking-widest text-foreground">
-              ENGLISH PREDICT PRO
+              {t("app.title")}
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <LanguageToggle />
             <ThemeToggle />
             <button
               type="button"
               onClick={logout}
               className="border border-border bg-panel px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:bg-panel-hover hover:text-foreground"
-              title="Lock terminal"
+              title={t("app.lockTitle")}
             >
-              ⏏ Lock
+              ⏏ {t("app.lock")}
             </button>
           </div>
         </div>
