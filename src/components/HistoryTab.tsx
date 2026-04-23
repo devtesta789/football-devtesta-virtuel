@@ -12,7 +12,11 @@ export function HistoryTab() {
   const [filterResult, setFilterResult] = useState<"all" | "correct" | "incorrect">("all");
 
   useEffect(() => {
-    getPredictionHistory().then((h) => {
+    const activeCategory =
+      typeof window !== "undefined"
+        ? localStorage.getItem("sporty.eventCategoryId") || undefined
+        : undefined;
+    getPredictionHistory(activeCategory).then((h) => {
       setItems(h);
       setLoading(false);
     });

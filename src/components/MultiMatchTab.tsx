@@ -96,7 +96,14 @@ export function MultiMatchTab({
         parseFloat(m.oddsDraw),
         parseFloat(m.oddsAway),
       );
-      const id = await savePrediction(r, currentRoundNumber, matchTime);
+      const savedCategoryId =
+        localStorage.getItem("sporty.eventCategoryId") || undefined;
+      const id = await savePrediction(
+        r,
+        currentRoundNumber,
+        matchTime,
+        savedCategoryId,
+      );
       out.push({
         ...r,
         id: id ?? undefined,

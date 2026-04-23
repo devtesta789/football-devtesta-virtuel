@@ -236,6 +236,16 @@ export async function discoverCategory(leagueId: string): Promise<string> {
   return data.eventCategoryId;
 }
 
+export async function discoverAllCategories(
+  leagueId: string,
+): Promise<{ id: string; roundCount: number }[]> {
+  const env = await callProxy({ action: "discoverAll", leagueId });
+  const data = env.data as
+    | { categories?: { id: string; roundCount: number }[] }
+    | undefined;
+  return data?.categories ?? [];
+}
+
 export async function fetchRound(
   leagueId: string,
   round: string,

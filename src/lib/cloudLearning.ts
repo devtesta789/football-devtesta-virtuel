@@ -370,6 +370,7 @@ export async function savePrediction(
   p: PredictionResult,
   roundNumber?: number,
   matchTime?: string,
+  eventCategoryId?: string,
 ): Promise<string | null> {
   const userId = await getUserId();
   if (!userId) return null;
@@ -408,6 +409,7 @@ export async function savePrediction(
               : null,
       round_number: roundNumber ?? null,
       match_time: matchTime ?? null,
+      event_category_id: eventCategoryId ?? null,
       prediction_data: {
         htHome: p.htHome,
         htAway: p.htAway,
@@ -440,16 +442,24 @@ export async function savePrediction(
   return data.id;
 }
 
-export async function getPredictionHistory(): Promise<PredictionResult[]> {
+export async function getPredictionHistory(
+  eventCategoryId?: string,
+): Promise<PredictionResult[]> {
   const userId = await getUserId();
   if (!userId) return [];
 
-  const { data } = await supabase
+  let query = supabase
     .from("prediction_history")
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(200);
+
+  if (eventCategoryId) {
+    query = query.eq("event_category_id", eventCategoryId);
+  }
+
+  const { data } = await query;
 
   return (data ?? []).map((h) => {
     const pd = (h.prediction_data ?? {}) as Record<string, unknown>;
