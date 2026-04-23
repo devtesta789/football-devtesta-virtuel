@@ -523,3 +523,36 @@ export async function getDistinctCategories(): Promise<string[]> {
   return cats.filter(Boolean) as string[];
 }
 
+/**
+ * Returns ALL validated real scores across all categories, keyed by
+ * `${roundNumber}|${homeTeam}|${awayTeam}`. Used to seed the local score cache
+ * so partial rounds get filled even after the Sporty-Tech API purges scores.
+ */
+export async function getValidatedScoresMap(): Promise<
+  Record<string, { home: number; away: number }>
+> {
+  const userId = await getUserId();
+  if (!userId) return {};
+  const { data } = await supabase
+    .from("prediction_history")
+    .select("round_number, home_team, away_team, real_score_home, real_score_away")
+    .eq("user_id", userId)
+    .eq("is_validated", true)
+    .not("round_number", "is", null);
+  const out: Record<string, { home: number; away: number }> = {};
+  for (const r of data ?? []) {
+    if (
+      r.round_number == null ||
+      r.real_score_home == null ||
+      r.real_score_away == null
+    )
+      continue;
+    out[`${r.round_number}|${r.home_team}|${r.away_team}`] = {
+      home: r.real_score_home,
+      away: r.real_score_away,
+    };
+  }
+  return out;
+}
+
+
