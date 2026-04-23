@@ -38,6 +38,7 @@ export function RoundSyncPanel({
   setResults,
   setCurrentRoundNumber,
 }: Props) {
+  const { t } = useTranslation();
   const [eventCategoryId, setEventCategoryIdState] = useState("");
   const [round, setRound] = useState("1");
   const [loading, setLoading] = useState(false);
@@ -59,6 +60,27 @@ export function RoundSyncPanel({
   const [availableCategories, setAvailableCategories] = useState<
     { id: string; roundCount: number }[]
   >([]);
+  const [rescanning, setRescanning] = useState(false);
+
+  // Seed local score cache from validated predictions in Supabase so that
+  // partial rounds (where the API has already purged some scores) can still
+  // be reconstructed from history.
+  useEffect(() => {
+    (async () => {
+      try {
+        const map = await getValidatedScoresMap();
+        const remapped: Record<string, { home: number; away: number }> = {};
+        for (const [key, v] of Object.entries(map)) remapped[key] = v;
+        const added = seedScoreCache(remapped);
+        if (added > 0) {
+          // silent — just informational in console
+          console.info(`[scoreCache] seeded ${added} score(s) from Supabase`);
+        }
+      } catch {
+        /* silent */
+      }
+    })();
+  }, []);
 
   // Load persisted config on mount; fall back to API discovery
   useEffect(() => {
