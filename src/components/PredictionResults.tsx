@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { PredictionResult } from "@/lib/prediction";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function PredictionResults({ result }: Props) {
+  const { t } = useTranslation();
   const validated = !!result.validated;
   const realH = result.realScoreHome;
   const realA = result.realScoreAway;
@@ -36,7 +38,7 @@ export function PredictionResults({ result }: Props) {
         </span>
         <div className="text-right">
           <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Confidence
+            {t("prediction.confidence")}
           </div>
           <div className="tabular-nums font-mono text-lg font-bold text-foreground">
             {result.confidence.toFixed(1)}%
@@ -49,12 +51,12 @@ export function PredictionResults({ result }: Props) {
         <div className="flex gap-2">
           {result.hotMatch && (
             <span className="border border-warn px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-warn">
-              🔥 Hot match
+              {t("prediction.hotMatch")}
             </span>
           )}
           {result.risky && (
             <span className="border border-danger px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-danger">
-              ⚠ Risky
+              {t("prediction.risky")}
             </span>
           )}
         </div>
@@ -64,7 +66,7 @@ export function PredictionResults({ result }: Props) {
       <div className="grid grid-cols-3 items-center gap-3 border border-border p-3">
         <div className="text-left">
           <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Home
+            {t("prediction.home")}
           </div>
           <div className="text-sm font-bold text-foreground">{result.homeTeam}</div>
         </div>
@@ -78,7 +80,7 @@ export function PredictionResults({ result }: Props) {
         </div>
         <div className="text-right">
           <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Away
+            {t("prediction.away")}
           </div>
           <div className="text-sm font-bold text-foreground">{result.awayTeam}</div>
         </div>
@@ -89,10 +91,10 @@ export function PredictionResults({ result }: Props) {
         <div className="flex items-center justify-between border border-lime bg-lime/5 p-3">
           <div>
             <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-lime">
-              💎 Value Edge Detected
+              {t("prediction.valueEdge")}
             </div>
             <div className="font-mono text-xs text-foreground">
-              Market: {result.valueBetMarket}
+              {t("prediction.market")}: {result.valueBetMarket}
             </div>
           </div>
           <div className="tabular-nums font-mono text-lg font-bold text-lime">
@@ -119,18 +121,18 @@ export function PredictionResults({ result }: Props) {
 
       {/* Stats grid */}
       <div className="grid grid-cols-3 gap-2 text-center sm:grid-cols-6">
-        <Cell label="HT" value={`${result.htHome}-${result.htAway}`} />
-        <Cell label="HT/FT" value={result.htft} />
-        <Cell label="O/U" value={result.overUnder} />
-        <Cell label="DC" value={result.doubleChance} />
-        <Cell label="λ H" value={result.lambdaHome.toFixed(2)} />
-        <Cell label="λ A" value={result.lambdaAway.toFixed(2)} />
+        <Cell label={t("prediction.ht")} value={`${result.htHome}-${result.htAway}`} />
+        <Cell label={t("prediction.htft")} value={result.htft} />
+        <Cell label={t("prediction.ou")} value={result.overUnder} />
+        <Cell label={t("prediction.dc")} value={result.doubleChance} />
+        <Cell label={t("prediction.lambdaH")} value={result.lambdaHome.toFixed(2)} />
+        <Cell label={t("prediction.lambdaA")} value={result.lambdaAway.toFixed(2)} />
       </div>
 
       {/* Top scores */}
       <div>
         <div className="mb-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          Top 3 probable scores
+          {t("prediction.topScores")}
         </div>
         <div className="grid grid-cols-3 gap-2">
           {result.topScores.map((s, i) => {
@@ -163,7 +165,7 @@ export function PredictionResults({ result }: Props) {
         <div className="border border-lime/40 bg-lime/5 p-3">
           <div className="flex items-center justify-between">
             <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              Real result
+              {t("prediction.realResult")}
             </div>
             <div className="flex items-center gap-2">
               <span className="tabular-nums font-mono text-sm font-bold text-foreground">
@@ -175,7 +177,7 @@ export function PredictionResults({ result }: Props) {
                   exactScoreCorrect ? "text-lime" : "text-muted-foreground",
                 )}
               >
-                {exactScoreCorrect ? "Exact ✓" : "Logged"}
+                {exactScoreCorrect ? t("prediction.exact") : t("prediction.logged")}
               </span>
             </div>
           </div>
