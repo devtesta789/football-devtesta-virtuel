@@ -199,16 +199,60 @@ export function RoundSyncPanel({
     setScanning(true);
     try {
       const cat = await ensureCat();
+      // Re-seed from Supabase right before scanning so any newly validated
+      // scores are available to combineRoundData via the local cache.
+      try {
+        const map = await getValidatedScoresMap();
+        seedScoreCache(map);
+      } catch {
+        /* silent */
+      }
       const sts = await scanRoundStatuses(LEAGUE_ID, cat);
       setStatuses(sts);
       const playedRounds = sts.filter(
         (s) => s.played === s.total && s.total > 0,
       ).length;
-      toast.success(`Scan terminé · ${playedRounds} rounds complets`);
+      toast.success(t("sync.scanDone", { count: playedRounds }));
     } catch (e) {
-      toast.error(`Scan échoué : ${(e as Error).message}`);
+      toast.error(t("sync.scanFailed", { error: (e as Error).message }));
     }
     setScanning(false);
+  }
+
+  async function handleRescanPartial() {
+    const partial = statuses
+      .filter((s) => s.total > 0 && s.played > 0 && s.played < s.total)
+      .map((s) => s.round);
+    if (partial.length === 0) {
+      toast(t("sync.noPlayed"), { icon: "ℹ️" });
+      return;
+    }
+    setRescanning(true);
+    try {
+      const cat = await ensureCat();
+      // Refresh seed first
+      try {
+        const map = await getValidatedScoresMap();
+        seedScoreCache(map);
+      } catch {
+        /* silent */
+      }
+      const { filled, statuses: updated } = await rescanPartialRounds(
+        LEAGUE_ID,
+        cat,
+        partial,
+      );
+      // Merge updated statuses into the existing list
+      setStatuses((prev) => {
+        const map = new Map(prev.map((s) => [s.round, s]));
+        for (const s of updated) map.set(s.round, s);
+        return [...map.values()].sort((a, b) => a.round - b.round);
+      });
+      toast.success(t("sync.rescanDone", { filled }));
+    } catch (e) {
+      toast.error(t("sync.scanFailed", { error: (e as Error).message }));
+    }
+    setRescanning(false);
   }
 
   async function handleValidateRound(roundNumber: number) {
