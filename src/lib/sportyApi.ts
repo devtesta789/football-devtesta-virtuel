@@ -158,6 +158,7 @@ export function getCachedScoreCount(): number {
 export function combineRoundData(
   matchesJson: unknown,
   playoutJson: unknown,
+  roundNumber?: number | string,
 ): SportyMatch[] {
   const md = matchesJson as { round?: { matches?: ApiEvent[] } } | null;
   const events = md?.round?.matches ?? [];
@@ -178,12 +179,26 @@ export function combineRoundData(
     const ma = matchTeam(rawAway);
     const mid = ev.id ?? 0;
     const goals = playoutMap.get(mid);
-    const score = finalFromGoals(goals);
+    let score = finalFromGoals(goals);
+
+    const homeName = mh ?? rawHome;
+    const awayName = ma ?? rawAway;
+
+    // Persist newly observed scores so they survive category rotation
+    if (score && roundNumber !== undefined) {
+      rememberScore(roundNumber, homeName, awayName, score.h, score.a);
+    }
+
+    // Fallback: recover from local cache when the API no longer exposes the score
+    if (!score && roundNumber !== undefined) {
+      const cached = recallScore(roundNumber, homeName, awayName);
+      if (cached) score = cached;
+    }
 
     out.push({
       matchId: mid,
-      homeTeam: mh ?? rawHome,
-      awayTeam: ma ?? rawAway,
+      homeTeam: homeName,
+      awayTeam: awayName,
       oddsHome: odds ? odds.h.toFixed(2) : "",
       oddsDraw: odds ? odds.d.toFixed(2) : "",
       oddsAway: odds ? odds.a.toFixed(2) : "",
