@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   fetchRound,
   scanRoundStatuses,
   fetchAllPlayedMatches,
   discoverAllCategories,
+  rescanPartialRounds,
+  seedScoreCache,
   type SportyMatch,
   type RoundStatus,
 } from "@/lib/sportyApi";
@@ -12,6 +15,7 @@ import {
   updateModelWeights,
   savePrediction,
   getLearningStats,
+  getValidatedScoresMap,
 } from "@/lib/cloudLearning";
 import { predict } from "@/lib/prediction";
 import { getUserConfig, setEventCategoryId as persistEventCategoryId } from "@/lib/userConfig";
