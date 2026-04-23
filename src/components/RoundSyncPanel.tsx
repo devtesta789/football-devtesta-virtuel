@@ -144,7 +144,7 @@ export function RoundSyncPanel({
       );
       setActiveCat(cat);
       if (matches.length === 0) {
-        toast.error("Aucun match retourné par l'API.");
+        toast.error(t("sync.noMatch"));
       } else {
         const entries: MatchEntry[] = matches.slice(0, 10).map((m) => ({
           ...emptyMatch(),
@@ -165,16 +165,17 @@ export function RoundSyncPanel({
         ).length;
         const playedCount = matches.filter((m) => m.played).length;
 
-        toast.success(`Round ${round} synchronisé · ${entries.length} matchs`);
+        toast.success(t("sync.syncedRound", { round, count: entries.length }));
         setStatus({
           kind: unmatched ? "info" : "ok",
-          text: `Round ${round} → ${entries.length} matchs · ${withOdds} avec cotes${
-            playedCount ? ` · ${playedCount} déjà joué(s)` : ""
-          }${unmatched ? ` · ${unmatched} équipe(s) non reconnue(s)` : ""}.`,
+          text:
+            t("sync.statusOk", { round, count: entries.length, withOdds }) +
+            (playedCount ? t("sync.alreadyPlayed", { count: playedCount }) : "") +
+            (unmatched ? t("sync.unmatched", { count: unmatched }) : ""),
         });
       }
     } catch (e) {
-      toast.error(`Échec : ${(e as Error).message}`);
+      toast.error(t("sync.failed", { error: (e as Error).message }));
     }
     setLoading(false);
   }
@@ -192,7 +193,7 @@ export function RoundSyncPanel({
     setResults(null);
     setMatches(entries);
     setCurrentRoundNumber?.(parseInt(round));
-    toast.success(`Rechargé ${entries.length} matchs`);
+    toast.success(t("sync.reloaded", { count: entries.length }));
   }
 
   async function handleScanStatuses() {
@@ -271,18 +272,15 @@ export function RoundSyncPanel({
       );
 
       if (pending.length === 0) {
-        toast(
-          `Round ${roundNumber} : aucune prédiction sauvegardée pour ce round`,
-          { icon: "ℹ️", duration: 4000 },
-        );
+        toast(t("sync.noPending", { round: roundNumber }), {
+          icon: "ℹ️",
+          duration: 4000,
+        });
         return;
       }
 
       if (playedMatches.length === 0) {
-        toast.error(
-          `Round ${roundNumber} : aucun score disponible pour le moment.`,
-          { duration: 6000 },
-        );
+        toast.error(t("sync.noScores", { round: roundNumber }), { duration: 6000 });
         return;
       }
 
@@ -308,16 +306,21 @@ export function RoundSyncPanel({
 
       if (validated > 0) {
         toast.success(
-          `Round ${roundNumber} ✓ ${validated} validée(s)${notFound ? ` · ${notFound} sans correspondance` : ""}`,
+          notFound > 0
+            ? t("sync.validatedRoundExtra", {
+                round: roundNumber,
+                count: validated,
+                notFound,
+              })
+            : t("sync.validatedRound", { round: roundNumber, count: validated }),
         );
       } else {
-        toast.error(
-          `Round ${roundNumber} : aucun match ne correspond à vos prédictions sauvegardées`,
-          { duration: 5000 },
-        );
+        toast.error(t("sync.noMatchPending", { round: roundNumber }), {
+          duration: 5000,
+        });
       }
     } catch (e) {
-      toast.error(`Validation échouée : ${(e as Error).message}`);
+      toast.error(t("sync.failed", { error: (e as Error).message }));
     }
     setValidatingRound(null);
   }
@@ -334,16 +337,15 @@ export function RoundSyncPanel({
       const pending = history.filter((h) => !h.validated);
 
       if (pending.length === 0) {
-        toast("Aucune prédiction en attente de validation", { icon: "ℹ️" });
+        toast(t("sync.noPendingValid"), { icon: "ℹ️" });
         return;
       }
 
       const totalPlayed = played.reduce((a, r) => a + r.matches.length, 0);
       if (totalPlayed === 0) {
-        toast.error(
-          `Aucun score disponible · ${pending.length} prédiction(s) en attente.`,
-          { duration: 6000 },
-        );
+        toast.error(t("sync.noScoresAvail", { count: pending.length }), {
+          duration: 6000,
+        });
         return;
       }
 
@@ -370,16 +372,15 @@ export function RoundSyncPanel({
 
       if (validated > 0) {
         toast.success(
-          `${validated} prédiction(s) auto-validée(s) sur ${pending.length} en attente`,
+          t("sync.autoValidated", { count: validated, total: pending.length }),
         );
       } else {
-        toast.error(
-          `${totalPlayed} match(s) joué(s) trouvé(s) mais aucun ne correspond à vos prédictions`,
-          { duration: 6000 },
-        );
+        toast.error(t("sync.noMatchAuto", { played: totalPlayed }), {
+          duration: 6000,
+        });
       }
     } catch (e) {
-      toast.error(`Auto-validation échouée : ${(e as Error).message}`);
+      toast.error(t("sync.autoFailed", { error: (e as Error).message }));
     }
     setValidating(false);
   }
@@ -396,7 +397,7 @@ export function RoundSyncPanel({
       const playedRounds = sts.filter((s) => s.played > 0).map((s) => s.round);
 
       if (playedRounds.length === 0) {
-        toast("Aucun round avec résultats", { icon: "ℹ️" });
+        toast(t("sync.noPlayed"), { icon: "ℹ️" });
         setTrainingAI(false);
         return;
       }
@@ -499,15 +500,25 @@ export function RoundSyncPanel({
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
       toast.success(
-        `Entraînement terminé · ${totalImported} matchs · ${totalValidated} validés · ${elapsed}s · Accuracy ${(finalStats.accuracy * 100).toFixed(1)}%`,
+        t("sync.trainDone", {
+          imported: totalImported,
+          validated: totalValidated,
+          elapsed,
+          accuracy: (finalStats.accuracy * 100).toFixed(1),
+        }),
         { duration: 8000 },
       );
       setStatus({
         kind: "ok",
-        text: `IA entraînée sur ${totalImported} matchs (${totalValidated} validés) · Accuracy ${(finalStats.accuracy * 100).toFixed(1)}% · ${elapsed}s`,
+        text: t("sync.trainStatus", {
+          imported: totalImported,
+          validated: totalValidated,
+          accuracy: (finalStats.accuracy * 100).toFixed(1),
+          elapsed,
+        }),
       });
     } catch (e) {
-      toast.error(`Entraînement échoué : ${(e as Error).message}`);
+      toast.error(t("sync.trainFailed", { error: (e as Error).message }));
     } finally {
       setTrainingAI(false);
       setTrainingProgress({ current: 0, total: 0, matchesFound: 0 });
@@ -520,12 +531,12 @@ export function RoundSyncPanel({
       const cats = await discoverAllCategories(LEAGUE_ID);
       setAvailableCategories(cats);
       if (cats.length === 0) {
-        toast("Aucune catégorie trouvée", { icon: "ℹ️" });
+        toast(t("sync.noCategoriesFound"), { icon: "ℹ️" });
       } else {
-        toast.success(`${cats.length} catégorie(s) trouvée(s)`);
+        toast.success(t("sync.categoriesFound", { count: cats.length }));
       }
     } catch (e) {
-      toast.error(`Échec découverte : ${(e as Error).message}`);
+      toast.error(t("sync.discoverFailed", { error: (e as Error).message }));
     }
     setDiscovering(false);
   }
@@ -538,7 +549,7 @@ export function RoundSyncPanel({
     setPreview(null);
     setStatuses([]);
     setStatus(null);
-    toast.success(`Catégorie : ${newId}`);
+    toast.success(t("sync.categorySet", { id: newId }));
   }
 
   const fullyPlayedRounds = statuses
