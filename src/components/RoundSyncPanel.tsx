@@ -680,14 +680,14 @@ export function RoundSyncPanel({
           disabled={scanning}
           className="self-end border border-border bg-background px-3 py-2 font-mono text-xs uppercase tracking-widest text-foreground transition-colors hover:bg-panel-hover disabled:opacity-40"
         >
-          {scanning ? "⟳" : "🔍"} Scan
+          {scanning ? "⟳" : "🔍"} {t("sync.scan")}
         </button>
       </div>
 
       {fullyPlayedRounds.length > 0 && (
         <div className="space-y-2 border-t border-border pt-3">
           <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Rounds complets disponibles
+            {t("sync.completedRounds")}
           </div>
           <div className="flex flex-wrap gap-2">
             {fullyPlayedRounds.map((rn) => (
@@ -711,16 +711,21 @@ export function RoundSyncPanel({
             <div className="flex items-center gap-2">
               <span className="animate-spin font-mono text-cyan">⟳</span>
               <span className="font-mono text-xs font-bold uppercase tracking-widest text-cyan">
-                Entraînement IA en cours...
+                {t("sync.training")}
               </span>
             </div>
             {trainingProgress.total > 0 && (
               <div className="space-y-1">
                 <div className="flex justify-between font-mono text-[10px] text-muted-foreground">
                   <span>
-                    Round {trainingProgress.current}/{trainingProgress.total}
+                    {t("sync.trainProgress", {
+                      current: trainingProgress.current,
+                      total: trainingProgress.total,
+                    })}
                   </span>
-                  <span>{trainingProgress.matchesFound} matchs trouvés</span>
+                  <span>
+                    {t("sync.matchesFound", { count: trainingProgress.matchesFound })}
+                  </span>
                 </div>
                 <div className="h-1 w-full bg-border">
                   <div
@@ -740,11 +745,11 @@ export function RoundSyncPanel({
             className="flex w-full items-center justify-center gap-2 border border-cyan bg-cyan/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-cyan transition-colors hover:bg-cyan/20"
           >
             <span>🧠</span>
-            <span>Entraîner l'IA (tous les rounds joués)</span>
+            <span>{t("sync.train")}</span>
           </button>
         )}
         <p className="font-mono text-[10px] text-muted-foreground">
-          Importe et valide automatiquement tous les matchs terminés
+          {t("sync.trainHint")}
         </p>
       </div>
 
@@ -754,27 +759,42 @@ export function RoundSyncPanel({
         disabled={validating}
         className="w-full border border-lime bg-lime/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-lime transition-colors hover:bg-lime/20 disabled:opacity-40"
       >
-        {validating ? "⟳ Validation…" : "✓ Auto-valider mes prédictions"}
+        {validating
+          ? `⟳ ${t("sync.validating")}`
+          : `✓ ${t("sync.autoValidate")}`}
       </button>
 
       {statuses.length > 0 && (
         <div className="space-y-2 border-t border-border pt-3">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              Statuts
+              {t("sync.statuses")}
             </span>
             <div className="flex items-center gap-2 font-mono text-[9px] uppercase text-muted-foreground">
               <span className="flex items-center gap-1">
-                <span className="size-1.5 bg-lime" /> Complet
+                <span className="size-1.5 bg-lime" /> {t("sync.complete")}
               </span>
               <span className="flex items-center gap-1">
-                <span className="size-1.5 bg-warn" /> Partiel
+                <span className="size-1.5 bg-warn" /> {t("sync.partial")}
               </span>
               <span className="flex items-center gap-1">
-                <span className="size-1.5 bg-border" /> À venir
+                <span className="size-1.5 bg-border" /> {t("sync.upcoming")}
               </span>
             </div>
           </div>
+
+          {statuses.some((s) => s.played > 0 && s.played < s.total) && (
+            <button
+              type="button"
+              onClick={handleRescanPartial}
+              disabled={rescanning}
+              className="w-full border border-warn bg-warn/10 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-warn transition-colors hover:bg-warn/20 disabled:opacity-40"
+            >
+              {rescanning ? "⟳ " : "🔁 "}
+              {t("sync.rescanPartial")}
+            </button>
+          )}
+
           <div className="grid grid-cols-10 gap-1">
             {statuses.map((s) => {
               const fully = s.total > 0 && s.played === s.total;
@@ -784,7 +804,7 @@ export function RoundSyncPanel({
                   key={s.round}
                   type="button"
                   onClick={() => setRound(String(s.round))}
-                  title={`Round ${s.round} · ${s.played}/${s.total}`}
+                  title={`${t("history.round")} ${s.round} · ${s.played}/${s.total}`}
                   className={cn(
                     "aspect-square border font-mono text-[10px] transition-colors",
                     fully && "border-lime/60 bg-lime/20 text-lime hover:bg-lime/30",
