@@ -61,6 +61,7 @@ export type Database = {
           away_team: string
           confidence: number
           created_at: string
+          event_category_id: string | null
           home_team: string
           id: string
           is_validated: boolean
@@ -86,6 +87,7 @@ export type Database = {
           away_team: string
           confidence: number
           created_at?: string
+          event_category_id?: string | null
           home_team: string
           id?: string
           is_validated?: boolean
@@ -111,6 +113,7 @@ export type Database = {
           away_team?: string
           confidence?: number
           created_at?: string
+          event_category_id?: string | null
           home_team?: string
           id?: string
           is_validated?: boolean
@@ -165,6 +168,33 @@ export type Database = {
           total_matches?: number
           trap_count?: number
           underperform_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_config: {
+        Row: {
+          default_season: string | null
+          event_category_id: string | null
+          id: string
+          league_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          default_season?: string | null
+          event_category_id?: string | null
+          id?: string
+          league_id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          default_season?: string | null
+          event_category_id?: string | null
+          id?: string
+          league_id?: string
           updated_at?: string
           user_id?: string
         }

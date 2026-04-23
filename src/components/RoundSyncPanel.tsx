@@ -3,10 +3,18 @@ import {
   fetchRound,
   scanRoundStatuses,
   fetchAllPlayedMatches,
+  discoverAllCategories,
   type SportyMatch,
   type RoundStatus,
 } from "@/lib/sportyApi";
-import { getPredictionHistory, updateModelWeights } from "@/lib/cloudLearning";
+import {
+  getPredictionHistory,
+  updateModelWeights,
+  savePrediction,
+  getLearningStats,
+} from "@/lib/cloudLearning";
+import { predict } from "@/lib/prediction";
+import { getUserConfig, setEventCategoryId as persistEventCategoryId } from "@/lib/userConfig";
 import { emptyMatch, type MatchEntry } from "./MultiMatchTab";
 import { cn } from "@/lib/utils";
 import type { PredictionResult } from "@/lib/prediction";
@@ -26,7 +34,7 @@ export function RoundSyncPanel({
   setResults,
   setCurrentRoundNumber,
 }: Props) {
-  const [eventCategoryId, setEventCategoryId] = useState("");
+  const [eventCategoryId, setEventCategoryIdState] = useState("");
   const [round, setRound] = useState("1");
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(false);
@@ -37,14 +45,53 @@ export function RoundSyncPanel({
   const [statuses, setStatuses] = useState<RoundStatus[]>([]);
   const [activeCat, setActiveCat] = useState("");
   const [validatingRound, setValidatingRound] = useState<number | null>(null);
+  const [trainingAI, setTrainingAI] = useState(false);
+  const [trainingProgress, setTrainingProgress] = useState({
+    current: 0,
+    total: 0,
+    matchesFound: 0,
+  });
+  const [discovering, setDiscovering] = useState(false);
+  const [availableCategories, setAvailableCategories] = useState<
+    { id: string; roundCount: number }[]
+  >([]);
 
+  // Load persisted config on mount; fall back to API discovery
   useEffect(() => {
-    const c = localStorage.getItem("sporty.eventCategoryId");
-    if (c) setEventCategoryId(c);
+    (async () => {
+      try {
+        const config = await getUserConfig();
+        if (config.eventCategoryId) {
+          setEventCategoryIdState(config.eventCategoryId);
+          setActiveCat(config.eventCategoryId);
+          localStorage.setItem("sporty.eventCategoryId", config.eventCategoryId);
+          return;
+        }
+        const local = localStorage.getItem("sporty.eventCategoryId");
+        if (local) {
+          setEventCategoryIdState(local);
+          setActiveCat(local);
+          await persistEventCategoryId(local);
+          return;
+        }
+        // Auto-discover
+        const fr = await fetchRound(LEAGUE_ID, "1", undefined);
+        if (fr.eventCategoryId) {
+          setEventCategoryIdState(fr.eventCategoryId);
+          setActiveCat(fr.eventCategoryId);
+          localStorage.setItem("sporty.eventCategoryId", fr.eventCategoryId);
+          await persistEventCategoryId(fr.eventCategoryId);
+        }
+      } catch {
+        /* silent */
+      }
+    })();
   }, []);
 
   useEffect(() => {
-    if (eventCategoryId) localStorage.setItem("sporty.eventCategoryId", eventCategoryId);
+    if (eventCategoryId) {
+      localStorage.setItem("sporty.eventCategoryId", eventCategoryId);
+    }
   }, [eventCategoryId]);
 
   async function ensureCat(): Promise<string> {
@@ -53,6 +100,7 @@ export function RoundSyncPanel({
       const fr = await fetchRound(LEAGUE_ID, "1", undefined);
       cat = fr.eventCategoryId;
       setActiveCat(cat);
+      if (cat) await persistEventCategoryId(cat);
     }
     return cat;
   }
@@ -146,6 +194,7 @@ export function RoundSyncPanel({
         (m) =>
           m.played && m.finalScoreHome !== undefined && m.finalScoreAway !== undefined,
       );
+      // Pull all history (no category filter) so older saisons can still be validated
       const history = await getPredictionHistory();
       const pending = history.filter(
         (h) => !h.validated && h.roundNumber === roundNumber,
@@ -161,7 +210,7 @@ export function RoundSyncPanel({
 
       if (playedMatches.length === 0) {
         toast.error(
-          `Round ${roundNumber} : aucun score disponible. L'API Sporty-Tech n'expose pas encore les résultats. Réessayez après quelques minutes.`,
+          `Round ${roundNumber} : aucun score disponible pour le moment.`,
           { duration: 6000 },
         );
         return;
@@ -193,7 +242,7 @@ export function RoundSyncPanel({
         );
       } else {
         toast.error(
-          `Round ${roundNumber} : ${playedMatches.length} match(s) joué(s) mais aucun ne correspond à vos prédictions sauvegardées`,
+          `Round ${roundNumber} : aucun match ne correspond à vos prédictions sauvegardées`,
           { duration: 5000 },
         );
       }
@@ -222,24 +271,21 @@ export function RoundSyncPanel({
       const totalPlayed = played.reduce((a, r) => a + r.matches.length, 0);
       if (totalPlayed === 0) {
         toast.error(
-          `Aucun score disponible dans l'API · ${pending.length} prédiction(s) en attente. Sporty-Tech n'expose pas les résultats de ce championnat actuel.`,
+          `Aucun score disponible · ${pending.length} prédiction(s) en attente.`,
           { duration: 6000 },
         );
         return;
       }
 
       let validated = 0;
-      let predRoundMismatch = 0;
       for (const r of played) {
         for (const m of r.matches) {
-          if (m.finalScoreHome === undefined || m.finalScoreAway === undefined) continue;
+          if (m.finalScoreHome === undefined || m.finalScoreAway === undefined)
+            continue;
           const pred = pending.find(
             (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
           );
           if (pred) {
-            if (pred.roundNumber !== undefined && pred.roundNumber !== r.round) {
-              predRoundMismatch++;
-            }
             await updateModelWeights(pred, {
               home: m.finalScoreHome,
               away: m.finalScoreAway,
@@ -258,17 +304,171 @@ export function RoundSyncPanel({
         );
       } else {
         toast.error(
-          `${totalPlayed} match(s) joué(s) trouvé(s) mais aucun ne correspond à vos ${pending.length} prédiction(s) en attente (vérifiez les noms d'équipes)`,
+          `${totalPlayed} match(s) joué(s) trouvé(s) mais aucun ne correspond à vos prédictions`,
           { duration: 6000 },
         );
-      }
-      if (predRoundMismatch > 0) {
-        toast(`${predRoundMismatch} prédiction(s) sur un round différent`, { icon: "⚠️" });
       }
     } catch (e) {
       toast.error(`Auto-validation échouée : ${(e as Error).message}`);
     }
     setValidating(false);
+  }
+
+  async function handleTrainOnAllPlayedRounds() {
+    setTrainingAI(true);
+    setTrainingProgress({ current: 0, total: 0, matchesFound: 0 });
+    const startTime = Date.now();
+    try {
+      const cat = await ensureCat();
+
+      const sts = await scanRoundStatuses(LEAGUE_ID, cat, 38, 6);
+      setStatuses(sts);
+      const playedRounds = sts.filter((s) => s.played > 0).map((s) => s.round);
+
+      if (playedRounds.length === 0) {
+        toast("Aucun round avec résultats", { icon: "ℹ️" });
+        setTrainingAI(false);
+        return;
+      }
+
+      setTrainingProgress((prev) => ({ ...prev, total: playedRounds.length }));
+
+      // Fetch all history (across all categories) to detect duplicates
+      const existingHistory = await getPredictionHistory();
+      const existingSet = new Set(
+        existingHistory.map((h) => `${h.roundNumber}|${h.homeTeam}|${h.awayTeam}`),
+      );
+
+      let totalImported = 0;
+      let totalValidated = 0;
+      const BATCH_SIZE = 3;
+
+      for (let batchStart = 0; batchStart < playedRounds.length; batchStart += BATCH_SIZE) {
+        const batch = playedRounds.slice(batchStart, batchStart + BATCH_SIZE);
+        const batchResults = await Promise.all(
+          batch.map(async (roundNum) => {
+            try {
+              const { matches } = await fetchRound(LEAGUE_ID, String(roundNum), cat);
+              const playedMatches = matches.filter(
+                (m) =>
+                  m.played &&
+                  m.matched &&
+                  m.finalScoreHome !== undefined &&
+                  m.finalScoreAway !== undefined,
+              );
+              return { roundNum, matches: playedMatches };
+            } catch {
+              return { roundNum, matches: [] as SportyMatch[] };
+            }
+          }),
+        );
+
+        for (const { roundNum, matches } of batchResults) {
+          const roundImported: PredictionResult[] = [];
+          for (const match of matches) {
+            const matchKey = `${roundNum}|${match.homeTeam}|${match.awayTeam}`;
+            if (
+              existingSet.has(matchKey) ||
+              !match.oddsHome ||
+              !match.oddsDraw ||
+              !match.oddsAway
+            )
+              continue;
+            try {
+              const prediction = await predict(
+                match.homeTeam,
+                match.awayTeam,
+                parseFloat(match.oddsHome),
+                parseFloat(match.oddsDraw),
+                parseFloat(match.oddsAway),
+              );
+              const id = await savePrediction(
+                prediction,
+                roundNum,
+                match.matchTime,
+                cat,
+              );
+              if (id) {
+                roundImported.push({
+                  ...prediction,
+                  id,
+                  roundNumber: roundNum,
+                  matchTime: match.matchTime,
+                });
+                existingSet.add(matchKey);
+              }
+            } catch {
+              /* skip */
+            }
+          }
+
+          for (const pred of roundImported) {
+            const m = matches.find(
+              (mm) => mm.homeTeam === pred.homeTeam && mm.awayTeam === pred.awayTeam,
+            );
+            if (m?.finalScoreHome !== undefined && m?.finalScoreAway !== undefined) {
+              await updateModelWeights(pred, {
+                home: m.finalScoreHome,
+                away: m.finalScoreAway,
+              });
+              totalValidated++;
+            }
+          }
+
+          totalImported += roundImported.length;
+          setTrainingProgress((prev) => ({
+            ...prev,
+            current: prev.current + 1,
+            matchesFound: totalImported,
+          }));
+        }
+      }
+
+      const finalStats = await getLearningStats();
+      setStatuses(await scanRoundStatuses(LEAGUE_ID, cat, 38, 6));
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+      toast.success(
+        `Entraînement terminé · ${totalImported} matchs · ${totalValidated} validés · ${elapsed}s · Accuracy ${(finalStats.accuracy * 100).toFixed(1)}%`,
+        { duration: 8000 },
+      );
+      setStatus({
+        kind: "ok",
+        text: `IA entraînée sur ${totalImported} matchs (${totalValidated} validés) · Accuracy ${(finalStats.accuracy * 100).toFixed(1)}% · ${elapsed}s`,
+      });
+    } catch (e) {
+      toast.error(`Entraînement échoué : ${(e as Error).message}`);
+    } finally {
+      setTrainingAI(false);
+      setTrainingProgress({ current: 0, total: 0, matchesFound: 0 });
+    }
+  }
+
+  async function handleDiscoverCategories() {
+    setDiscovering(true);
+    try {
+      const cats = await discoverAllCategories(LEAGUE_ID);
+      setAvailableCategories(cats);
+      if (cats.length === 0) {
+        toast("Aucune catégorie trouvée", { icon: "ℹ️" });
+      } else {
+        toast.success(`${cats.length} catégorie(s) trouvée(s)`);
+      }
+    } catch (e) {
+      toast.error(`Échec découverte : ${(e as Error).message}`);
+    }
+    setDiscovering(false);
+  }
+
+  async function handleChangeCategory(newId: string) {
+    setEventCategoryIdState(newId);
+    setActiveCat(newId);
+    localStorage.setItem("sporty.eventCategoryId", newId);
+    await persistEventCategoryId(newId);
+    setPreview(null);
+    setStatuses([]);
+    setStatus(null);
+    toast.success(`Catégorie : ${newId}`);
   }
 
   const fullyPlayedRounds = statuses
@@ -284,9 +484,14 @@ export function RoundSyncPanel({
             Sporty-Tech Live Sync
           </span>
           {activeCat && (
-            <span className="font-mono text-[10px] text-muted-foreground">
-              · cat {activeCat}
-            </span>
+            <>
+              <span className="font-mono text-[10px] text-muted-foreground">
+                · cat {activeCat}
+              </span>
+              <span className="border border-lime/60 bg-lime/10 px-1 font-mono text-[9px] uppercase text-lime">
+                ACTIVE
+              </span>
+            </>
           )}
         </div>
         <button
@@ -299,19 +504,67 @@ export function RoundSyncPanel({
       </div>
 
       {showAdvanced && (
-        <div className="space-y-1">
-          <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            eventCategoryId (override)
-          </label>
-          <input
-            value={eventCategoryId}
-            onChange={(e) => setEventCategoryId(e.target.value)}
-            placeholder="auto-découvert"
-            className="w-full border border-border bg-background px-3 py-2 font-mono text-sm focus:border-cyan focus:outline-none"
-          />
-          <p className="font-mono text-[10px] text-muted-foreground">
-            Laisser vide pour découverte auto · leagueId fixé à {LEAGUE_ID}
-          </p>
+        <div className="space-y-3 border-t border-border pt-3">
+          <div className="space-y-1">
+            <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              eventCategoryId
+            </label>
+            <div className="flex gap-2">
+              <input
+                value={eventCategoryId}
+                onChange={(e) => setEventCategoryIdState(e.target.value)}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && v !== activeCat) handleChangeCategory(v);
+                }}
+                placeholder="auto-découvert"
+                className="flex-1 border border-border bg-background px-3 py-2 font-mono text-sm focus:border-cyan focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleDiscoverCategories}
+                disabled={discovering}
+                className="border border-cyan bg-cyan/10 px-3 py-2 font-mono text-xs uppercase tracking-widest text-cyan hover:bg-cyan/20 disabled:opacity-40"
+              >
+                {discovering ? "⟳" : "🔍 Découvrir"}
+              </button>
+            </div>
+            <p className="font-mono text-[10px] text-muted-foreground">
+              LeagueId : {LEAGUE_ID} ·{" "}
+              {availableCategories.length > 0
+                ? `${availableCategories.length} trouvée(s)`
+                : "Utiliser 'Découvrir' pour scanner les saisons"}
+            </p>
+          </div>
+
+          {availableCategories.length > 0 && (
+            <div className="space-y-1">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                Catégories disponibles
+              </div>
+              <div className="space-y-1">
+                {availableCategories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleChangeCategory(cat.id)}
+                    className={cn(
+                      "flex w-full items-center justify-between border px-3 py-1.5 font-mono text-xs transition-colors",
+                      eventCategoryId === cat.id
+                        ? "border-cyan bg-cyan/10 text-cyan"
+                        : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground",
+                    )}
+                  >
+                    <span>cat {cat.id}</span>
+                    <span>{cat.roundCount} matchs/round</span>
+                  </button>
+                ))}
+              </div>
+              <p className="font-mono text-[10px] text-warn">
+                ⚠ Changer = nouvelle saison. L'historique reste en base.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -349,7 +602,7 @@ export function RoundSyncPanel({
           disabled={loading}
           className="self-end border border-cyan bg-cyan/10 px-3 py-2 font-mono text-xs font-bold uppercase tracking-widest text-cyan transition-colors hover:bg-cyan/20 disabled:opacity-40"
         >
-          {loading ? "⟳" : "⬇"} Sync round
+          {loading ? "⟳" : "⬇"} Sync
         </button>
         <button
           type="button"
@@ -357,14 +610,14 @@ export function RoundSyncPanel({
           disabled={scanning}
           className="self-end border border-border bg-background px-3 py-2 font-mono text-xs uppercase tracking-widest text-foreground transition-colors hover:bg-panel-hover disabled:opacity-40"
         >
-          {scanning ? "⟳ Scan…" : "🔍 Scan statuts"}
+          {scanning ? "⟳" : "🔍"} Scan
         </button>
       </div>
 
       {fullyPlayedRounds.length > 0 && (
         <div className="space-y-2 border-t border-border pt-3">
           <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Rounds complets disponibles pour validation
+            Rounds complets disponibles
           </div>
           <div className="flex flex-wrap gap-2">
             {fullyPlayedRounds.map((rn) => (
@@ -375,12 +628,55 @@ export function RoundSyncPanel({
                 disabled={validatingRound === rn}
                 className="border border-lime bg-lime/10 px-3 py-1.5 font-mono text-xs text-lime transition-colors hover:bg-lime/20 disabled:opacity-40"
               >
-                {validatingRound === rn ? "⟳" : "✓"} Round {rn}
+                {validatingRound === rn ? "⟳" : "✓"} R{rn}
               </button>
             ))}
           </div>
         </div>
       )}
+
+      <div className="space-y-1 border-t border-border pt-3">
+        {trainingAI ? (
+          <div className="space-y-2 border border-cyan bg-cyan/5 p-3">
+            <div className="flex items-center gap-2">
+              <span className="animate-spin font-mono text-cyan">⟳</span>
+              <span className="font-mono text-xs font-bold uppercase tracking-widest text-cyan">
+                Entraînement IA en cours...
+              </span>
+            </div>
+            {trainingProgress.total > 0 && (
+              <div className="space-y-1">
+                <div className="flex justify-between font-mono text-[10px] text-muted-foreground">
+                  <span>
+                    Round {trainingProgress.current}/{trainingProgress.total}
+                  </span>
+                  <span>{trainingProgress.matchesFound} matchs trouvés</span>
+                </div>
+                <div className="h-1 w-full bg-border">
+                  <div
+                    className="h-full bg-cyan transition-all"
+                    style={{
+                      width: `${(trainingProgress.current / trainingProgress.total) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleTrainOnAllPlayedRounds}
+            className="flex w-full items-center justify-center gap-2 border border-cyan bg-cyan/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-cyan transition-colors hover:bg-cyan/20"
+          >
+            <span>🧠</span>
+            <span>Entraîner l'IA (tous les rounds joués)</span>
+          </button>
+        )}
+        <p className="font-mono text-[10px] text-muted-foreground">
+          Importe et valide automatiquement tous les matchs terminés
+        </p>
+      </div>
 
       <button
         type="button"
@@ -388,14 +684,14 @@ export function RoundSyncPanel({
         disabled={validating}
         className="w-full border border-lime bg-lime/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-lime transition-colors hover:bg-lime/20 disabled:opacity-40"
       >
-        {validating ? "⟳ Validation…" : "✓ Auto-valider tous les rounds"}
+        {validating ? "⟳ Validation…" : "✓ Auto-valider mes prédictions"}
       </button>
 
       {statuses.length > 0 && (
         <div className="space-y-2 border-t border-border pt-3">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              Statuts des rounds
+              Statuts
             </span>
             <div className="flex items-center gap-2 font-mono text-[9px] uppercase text-muted-foreground">
               <span className="flex items-center gap-1">
@@ -418,13 +714,11 @@ export function RoundSyncPanel({
                   key={s.round}
                   type="button"
                   onClick={() => setRound(String(s.round))}
-                  title={`Round ${s.round} · ${s.played}/${s.total} joué(s)`}
+                  title={`Round ${s.round} · ${s.played}/${s.total}`}
                   className={cn(
                     "aspect-square border font-mono text-[10px] transition-colors",
-                    fully &&
-                      "border-lime/60 bg-lime/20 text-lime hover:bg-lime/30",
-                    partial &&
-                      "border-warn/60 bg-warn/20 text-warn hover:bg-warn/30",
+                    fully && "border-lime/60 bg-lime/20 text-lime hover:bg-lime/30",
+                    partial && "border-warn/60 bg-warn/20 text-warn hover:bg-warn/30",
                     !fully &&
                       !partial &&
                       "border-border bg-background text-muted-foreground hover:border-foreground/40",

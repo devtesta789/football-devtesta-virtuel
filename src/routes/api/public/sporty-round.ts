@@ -91,6 +91,40 @@ export const Route = createFileRoute("/api/public/sporty-round")({
             );
           }
 
+          if (action === "discoverAll") {
+            const BATCH = 30;
+            const candidates: { id: string; roundCount: number }[] = [];
+            for (let start = SCAN_TO; start >= SCAN_FROM; start -= BATCH) {
+              const ids: number[] = [];
+              for (let i = 0; i < BATCH && start - i >= SCAN_FROM; i++)
+                ids.push(start - i);
+              const results = await Promise.all(
+                ids.map(async (cat) => {
+                  const data = (await fetchJson(
+                    `${BASE}/round/1?eventCategoryId=${cat}&getNext=false`,
+                  )) as {
+                    round?: { matches?: { entryPointId?: number | string }[] };
+                  } | null;
+                  const matches = data?.round?.matches ?? [];
+                  if (
+                    matches.length > 0 &&
+                    String(matches[0].entryPointId) === leagueId
+                  ) {
+                    return { id: String(cat), roundCount: matches.length };
+                  }
+                  return null;
+                }),
+              );
+              for (const r of results) if (r) candidates.push(r);
+              if (candidates.length >= 5) break;
+            }
+            candidates.sort((a, b) => b.roundCount - a.roundCount);
+            return Response.json(
+              { success: true, data: { categories: candidates } },
+              { status: 200, headers: corsHeaders },
+            );
+          }
+
           if (!eventCategoryId) {
             const found = await discoverCategoryId(leagueId);
             if (!found)
