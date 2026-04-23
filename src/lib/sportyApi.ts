@@ -222,6 +222,7 @@ export function combineRoundData(
   matchesJson: unknown,
   playoutJson: unknown,
   roundNumber?: number | string,
+  useCache = true,
 ): SportyMatch[] {
   const md = matchesJson as { round?: { matches?: ApiEvent[] } } | null;
   const events = md?.round?.matches ?? [];
@@ -253,7 +254,8 @@ export function combineRoundData(
     }
 
     // Fallback: recover from local cache when the API no longer exposes the score
-    if (!score && roundNumber !== undefined) {
+    // Disabled during scans (useCache=false) so partial rounds reflect API truth.
+    if (!score && useCache && roundNumber !== undefined) {
       const cached = recallScore(roundNumber, homeName, awayName);
       if (cached) score = cached;
     }
@@ -313,12 +315,13 @@ export async function fetchRound(
   leagueId: string,
   round: string,
   eventCategoryId?: string,
+  useCache = true,
 ): Promise<{ matches: SportyMatch[]; eventCategoryId: string }> {
   const params: Record<string, string> = { action: "results", leagueId, round };
   if (eventCategoryId) params.eventCategoryId = eventCategoryId;
   const env = await callProxy(params);
   const data = env.data as { matches?: unknown; playout?: unknown } | undefined;
-  const matches = combineRoundData(data?.matches, data?.playout, round);
+  const matches = combineRoundData(data?.matches, data?.playout, round, useCache);
   return { matches, eventCategoryId: env.eventCategoryId ?? eventCategoryId ?? "" };
 }
 
@@ -339,7 +342,8 @@ export async function scanRoundStatuses(
 
   const fetchOne = async (r: number): Promise<RoundStatus | null> => {
     try {
-      const { matches } = await fetchRound(leagueId, String(r), eventCategoryId);
+      // useCache=false: rely on API truth so partial rounds reflect actual state
+      const { matches } = await fetchRound(leagueId, String(r), eventCategoryId, false);
       return {
         round: r,
         total: matches.length,
@@ -376,7 +380,8 @@ export async function fetchAllPlayedMatches(
     r: number,
   ): Promise<{ round: number; matches: SportyMatch[] } | null> => {
     try {
-      const { matches } = await fetchRound(leagueId, String(r), eventCategoryId);
+      // useCache=false during scans
+      const { matches } = await fetchRound(leagueId, String(r), eventCategoryId, false);
       const played = matches.filter((m) => m.played);
       if (played.length) return { round: r, matches: played };
       return null;

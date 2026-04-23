@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { TeamSelect } from "./TeamSelect";
 import { OddsInput } from "./OddsInput";
 import { PredictionResults } from "./PredictionResults";
@@ -45,6 +46,7 @@ export function MultiMatchTab({
   expanded,
   setExpanded,
 }: Props) {
+  const { t } = useTranslation();
   const [currentRoundNumber, setCurrentRoundNumber] = React.useState<number | undefined>();
   const usedTeams = matches.flatMap((m) => [m.homeTeam, m.awayTeam]).filter(Boolean);
 
@@ -53,7 +55,7 @@ export function MultiMatchTab({
   }
   function add() {
     if (matches.length >= 10) {
-      toast.error("Maximum 10 matchs par combiné");
+      toast.error(t("prediction.maxReached"));
       return;
     }
     setMatches((m) => [...m, emptyMatch()]);
@@ -81,7 +83,7 @@ export function MultiMatchTab({
 
   async function handlePredict() {
     if (!allValid) {
-      toast.error("Veuillez remplir correctement tous les matchs");
+      toast.error(t("prediction.incompleteForm"));
       return;
     }
     setLoading(true);
@@ -115,7 +117,7 @@ export function MultiMatchTab({
     setResults(out);
     setExpanded(0);
     setLoading(false);
-    toast.success(`${out.length} prédiction(s) générée(s)`);
+    toast.success(t("prediction.generated", { count: out.length }));
   }
 
   const combinedOdds = results?.reduce(
@@ -144,7 +146,7 @@ export function MultiMatchTab({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                Targeted Fixtures [{matches.length}/10]
+                {t("prediction.targetedFixtures", { count: matches.length })}
               </span>
               <button
                 type="button"
@@ -152,7 +154,7 @@ export function MultiMatchTab({
                 disabled={matches.length >= 10}
                 className="font-mono text-xs uppercase tracking-widest text-cyan transition-colors hover:text-cyan/70 disabled:text-muted-foreground"
               >
-                + Append match
+                {t("prediction.appendMatch")}
               </button>
             </div>
 
@@ -164,7 +166,7 @@ export function MultiMatchTab({
                 <div key={i} className="space-y-3 border border-border bg-panel p-3">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-[10px] uppercase tracking-widest text-cyan">
-                      Match #{String(i + 1).padStart(2, "0")}
+                      {t("prediction.matchHash", { num: String(i + 1).padStart(2, "0") })}
                       {currentRoundNumber && (
                         <span className="ml-1 text-muted-foreground">
                           · R{currentRoundNumber}
@@ -177,20 +179,20 @@ export function MultiMatchTab({
                         onClick={() => remove(i)}
                         className="font-mono text-xs uppercase tracking-widest text-danger hover:opacity-70"
                       >
-                        ✕ Remove
+                        {t("prediction.removeMatch")}
                       </button>
                     )}
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <TeamSelect
-                      label="Home"
+                      label={t("prediction.home")}
                       value={m.homeTeam}
                       onChange={(v) => update(i, { homeTeam: v })}
                       excludeTeam={m.awayTeam}
                       disabledTeams={others}
                     />
                     <TeamSelect
-                      label="Away"
+                      label={t("prediction.away")}
                       value={m.awayTeam}
                       onChange={(v) => update(i, { awayTeam: v })}
                       excludeTeam={m.homeTeam}
@@ -199,19 +201,19 @@ export function MultiMatchTab({
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <OddsInput
-                      label="Odds 1"
+                      label={t("prediction.oddsHome")}
                       value={m.oddsHome}
                       onChange={(v) => update(i, { oddsHome: v })}
                       accent="cyan"
                     />
                     <OddsInput
-                      label="Draw X"
+                      label={t("prediction.oddsDraw")}
                       value={m.oddsDraw}
                       onChange={(v) => update(i, { oddsDraw: v })}
                       accent="warn"
                     />
                     <OddsInput
-                      label="Odds 2"
+                      label={t("prediction.oddsAway")}
                       value={m.oddsAway}
                       onChange={(v) => update(i, { oddsAway: v })}
                       accent="lime"
@@ -229,8 +231,8 @@ export function MultiMatchTab({
             className="w-full border border-cyan bg-cyan/10 px-4 py-3 font-mono text-xs font-bold uppercase tracking-widest text-cyan transition-colors hover:bg-cyan/20 disabled:opacity-40"
           >
             {loading
-              ? "⚡ Processing…"
-              : `⚡ Predict ${matches.length} match${matches.length > 1 ? "es" : ""}`}
+              ? t("prediction.processing")
+              : t("prediction.predict", { count: matches.length })}
           </button>
         </>
       )}
@@ -241,10 +243,10 @@ export function MultiMatchTab({
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                  Combined Sequence
+                  {t("prediction.combinedSequence")}
                 </div>
                 <div className="font-mono text-sm font-bold text-foreground">
-                  {results.length} match{results.length > 1 ? "es" : ""}
+                  {t("prediction.matches", { count: results.length })}
                 </div>
               </div>
               <button
@@ -252,13 +254,13 @@ export function MultiMatchTab({
                 onClick={reset}
                 className="font-mono text-xs uppercase tracking-widest text-cyan hover:text-cyan/70"
               >
-                ↻ New combo
+                {t("prediction.newCombo")}
               </button>
             </div>
             <div className="grid grid-cols-2 gap-3 border-t border-border pt-3">
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                  Cumulated odds
+                  {t("prediction.cumulatedOdds")}
                 </div>
                 <div className="tabular-nums font-mono text-lg font-bold text-cyan">
                   @{combinedOdds!.toFixed(2)}
@@ -266,7 +268,7 @@ export function MultiMatchTab({
               </div>
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                  Joint probability
+                  {t("prediction.jointProbability")}
                 </div>
                 <div className="tabular-nums font-mono text-lg font-bold text-lime">
                   {(combinedProb! * 100).toFixed(1)}%

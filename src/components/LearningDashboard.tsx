@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getLearningStats, resetWeights, type LearningStats } from "@/lib/cloudLearning";
 import toast from "react-hot-toast";
 
 export function LearningDashboard() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<LearningStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -19,28 +21,28 @@ export function LearningDashboard() {
 
   async function handleReset() {
     toast(
-      (t) => (
+      (tt) => (
         <div className="space-y-2">
-          <p className="font-mono text-xs">Reset all model weights to defaults?</p>
+          <p className="font-mono text-xs">{t("ai.resetConfirm")}</p>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={async () => {
-                toast.dismiss(t.id);
+                toast.dismiss(tt.id);
                 await resetWeights();
                 load();
-                toast.success("Weights reset to default");
+                toast.success(t("ai.resetDone"));
               }}
               className="bg-danger px-3 py-1 font-mono text-[10px] uppercase text-foreground"
             >
-              Confirm
+              {t("ai.confirm")}
             </button>
             <button
               type="button"
-              onClick={() => toast.dismiss(t.id)}
+              onClick={() => toast.dismiss(tt.id)}
               className="border border-border px-3 py-1 font-mono text-[10px] uppercase"
             >
-              Cancel
+              {t("ai.cancel")}
             </button>
           </div>
         </div>
@@ -52,41 +54,35 @@ export function LearningDashboard() {
   if (loading || !stats) {
     return (
       <div className="p-8 text-center font-mono text-xs uppercase tracking-widest text-muted-foreground">
-        Loading neural telemetry…
+        {t("ai.loading")}
       </div>
     );
   }
 
   const recommendations: string[] = [];
-  if (stats.totalMatches < 10)
-    recommendations.push(
-      "Validate more matches — the AI needs ≥10 results to calibrate.",
-    );
+  if (stats.totalMatches < 10) recommendations.push(t("ai.recValidateMore"));
   if (stats.recentAccuracy < 0.4 && stats.totalMatches >= 10)
-    recommendations.push("Recent accuracy low — model is regressing toward defaults.");
-  if (stats.weights.drawBias > 1.05)
-    recommendations.push("Draw bias is elevated. Watch for over-prediction of nuls.");
-  if (stats.trapTeams.length > 2)
-    recommendations.push("Several trap teams detected. Penalties applied automatically.");
-  if (recommendations.length === 0)
-    recommendations.push("System is in nominal range. Continue logging results.");
+    recommendations.push(t("ai.recLowAccuracy"));
+  if (stats.weights.drawBias > 1.05) recommendations.push(t("ai.recDrawBias"));
+  if (stats.trapTeams.length > 2) recommendations.push(t("ai.recTrapTeams"));
+  if (recommendations.length === 0) recommendations.push(t("ai.recNominal"));
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Metric label="Validated" value={String(stats.validated)} accent="cyan" />
+        <Metric label={t("ai.validated")} value={String(stats.validated)} accent="cyan" />
         <Metric
-          label="Accuracy"
+          label={t("ai.accuracy")}
           value={`${(stats.accuracy * 100).toFixed(0)}%`}
           accent="lime"
         />
         <Metric
-          label="Recent (10)"
+          label={t("ai.recent")}
           value={`${(stats.recentAccuracy * 100).toFixed(0)}%`}
           accent="warn"
         />
         <Metric
-          label="Exact score"
+          label={t("ai.exactScore")}
           value={`${(stats.scoreAccuracy * 100).toFixed(0)}%`}
           accent="cyan"
         />
@@ -95,14 +91,14 @@ export function LearningDashboard() {
       <div className="space-y-2 border border-border bg-panel p-4">
         <div className="flex items-center justify-between">
           <h3 className="font-mono text-[10px] font-bold uppercase tracking-widest text-cyan">
-            Model Weights
+            {t("ai.modelWeights")}
           </h3>
           <button
             type="button"
             onClick={handleReset}
             className="font-mono text-[10px] uppercase tracking-widest text-danger hover:opacity-70"
           >
-            Reset
+            {t("ai.reset")}
           </button>
         </div>
         <div className="space-y-2">
@@ -114,32 +110,35 @@ export function LearningDashboard() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <TeamList
-          title="Trap teams"
-          subtitle="Favs that disappoint"
+          title={t("ai.trapTeams")}
+          subtitle={t("ai.trapSubtitle")}
+          emptyLabel={t("ai.none")}
           items={stats.trapTeams.map(
-            (t) => `${t.team_name} · ${t.trap_count}/${t.total_matches}`,
+            (tt) => `${tt.team_name} · ${tt.trap_count}/${tt.total_matches}`,
           )}
           accent="warn"
         />
         <TeamList
-          title="Overperformers"
-          subtitle="Outsiders that surprise"
+          title={t("ai.overperformers")}
+          subtitle={t("ai.overperformSubtitle")}
+          emptyLabel={t("ai.none")}
           items={stats.overperformTeams.map(
-            (t) => `${t.team_name} · +${t.overperform_count}`,
+            (tt) => `${tt.team_name} · +${tt.overperform_count}`,
           )}
           accent="lime"
         />
         <TeamList
-          title="Avoid"
-          subtitle="High trap rate"
-          items={stats.avoidTeams.map((t) => `${t.team_name}`)}
+          title={t("ai.avoid")}
+          subtitle={t("ai.avoidSubtitle")}
+          emptyLabel={t("ai.none")}
+          items={stats.avoidTeams.map((tt) => `${tt.team_name}`)}
           accent="danger"
         />
       </div>
 
       <div className="space-y-1 border border-border bg-panel p-4">
         <h3 className="font-mono text-[10px] font-bold uppercase tracking-widest text-cyan">
-          AI Recommendations
+          {t("ai.recommendations")}
         </h3>
         <ul className="space-y-1">
           {recommendations.map((r, i) => (
@@ -202,11 +201,13 @@ function WeightBar({ name, value }: { name: string; value: number }) {
 function TeamList({
   title,
   subtitle,
+  emptyLabel,
   items,
   accent,
 }: {
   title: string;
   subtitle: string;
+  emptyLabel: string;
   items: string[];
   accent: string;
 }) {
@@ -223,7 +224,7 @@ function TeamList({
       </h4>
       <p className="font-mono text-[9px] text-muted-foreground">{subtitle}</p>
       {items.length === 0 ? (
-        <p className="font-mono text-[10px] text-muted-foreground">— none —</p>
+        <p className="font-mono text-[10px] text-muted-foreground">{emptyLabel}</p>
       ) : (
         <ul className="space-y-0.5">
           {items.map((it, i) => (
