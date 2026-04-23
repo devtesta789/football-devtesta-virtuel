@@ -1,10 +1,10 @@
 import { getModelWeights, getTeamMemory, type ModelWeights } from "./cloudLearning";
 
 export const TEAMS = [
-  "A. Villa", "Arsenal", "Bournemouth", "Brentford", "Brighton", "Burnley",
-  "Chelsea", "Crystal Palace", "Everton", "Fulham", "Ipswich", "Leicester",
-  "Liverpool", "Man City", "Man United", "Newcastle", "Nottm Forest",
-  "Southampton", "Tottenham", "West Ham", "Wolves",
+  "A. Villa", "Bournemouth", "Brentford", "Brighton", "Burnley",
+  "C. Palace", "Everton", "Fulham", "Leeds", "Liverpool",
+  "London Blues", "London Reds", "Manchester Blue", "Manchester Red",
+  "N. Forest", "Newcastle", "Spurs", "Sunderland", "West Ham", "Wolverhampton",
 ].sort();
 
 const SCORE_PRIORS: Record<string, number> = {
