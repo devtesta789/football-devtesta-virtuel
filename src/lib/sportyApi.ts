@@ -245,7 +245,7 @@ export async function fetchRound(
   if (eventCategoryId) params.eventCategoryId = eventCategoryId;
   const env = await callProxy(params);
   const data = env.data as { matches?: unknown; playout?: unknown } | undefined;
-  const matches = combineRoundData(data?.matches, data?.playout);
+  const matches = combineRoundData(data?.matches, data?.playout, round);
   return { matches, eventCategoryId: env.eventCategoryId ?? eventCategoryId ?? "" };
 }
 
