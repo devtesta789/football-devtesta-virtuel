@@ -509,3 +509,17 @@ export async function getPredictionHistory(
     };
   });
 }
+
+export async function getDistinctCategories(): Promise<string[]> {
+  const userId = await getUserId();
+  if (!userId) return [];
+  const { data } = await supabase
+    .from("prediction_history")
+    .select("event_category_id")
+    .eq("user_id", userId)
+    .not("event_category_id", "is", null)
+    .order("created_at", { ascending: false });
+  const cats = [...new Set((data ?? []).map((d) => d.event_category_id))];
+  return cats.filter(Boolean) as string[];
+}
+
