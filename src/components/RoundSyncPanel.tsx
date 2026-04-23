@@ -1,0 +1,453 @@
+import React, { useEffect, useState } from "react";
+import {
+  fetchRound,
+  scanRoundStatuses,
+  fetchAllPlayedMatches,
+  type SportyMatch,
+  type RoundStatus,
+} from "@/lib/sportyApi";
+import { getPredictionHistory, updateModelWeights } from "@/lib/cloudLearning";
+import { emptyMatch, type MatchEntry } from "./MultiMatchTab";
+import { cn } from "@/lib/utils";
+import type { PredictionResult } from "@/lib/prediction";
+import toast from "react-hot-toast";
+
+interface Props {
+  setMatches: React.Dispatch<React.SetStateAction<MatchEntry[]>>;
+  setResults: React.Dispatch<React.SetStateAction<PredictionResult[] | null>>;
+  currentRoundNumber?: number;
+  setCurrentRoundNumber?: (n: number) => void;
+}
+
+const LEAGUE_ID = "8035";
+
+export function RoundSyncPanel({
+  setMatches,
+  setResults,
+  setCurrentRoundNumber,
+}: Props) {
+  const [eventCategoryId, setEventCategoryId] = useState("");
+  const [round, setRound] = useState("1");
+  const [loading, setLoading] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [status, setStatus] = useState<{ kind: "ok" | "err" | "info"; text: string } | null>(null);
+  const [preview, setPreview] = useState<SportyMatch[] | null>(null);
+  const [statuses, setStatuses] = useState<RoundStatus[]>([]);
+  const [activeCat, setActiveCat] = useState("");
+  const [validatingRound, setValidatingRound] = useState<number | null>(null);
+
+  useEffect(() => {
+    const c = localStorage.getItem("sporty.eventCategoryId");
+    if (c) setEventCategoryId(c);
+  }, []);
+
+  useEffect(() => {
+    if (eventCategoryId) localStorage.setItem("sporty.eventCategoryId", eventCategoryId);
+  }, [eventCategoryId]);
+
+  async function ensureCat(): Promise<string> {
+    let cat = activeCat || eventCategoryId.trim();
+    if (!cat) {
+      const fr = await fetchRound(LEAGUE_ID, "1", undefined);
+      cat = fr.eventCategoryId;
+      setActiveCat(cat);
+    }
+    return cat;
+  }
+
+  async function handleSyncRound() {
+    if (!round) return;
+    setLoading(true);
+    setStatus(null);
+    setPreview(null);
+    try {
+      const { matches, eventCategoryId: cat } = await fetchRound(
+        LEAGUE_ID,
+        round,
+        eventCategoryId.trim() || undefined,
+      );
+      setActiveCat(cat);
+      if (matches.length === 0) {
+        toast.error("Aucun match retourné par l'API.");
+      } else {
+        const entries: MatchEntry[] = matches.slice(0, 10).map((m) => ({
+          ...emptyMatch(),
+          homeTeam: m.matched ? m.homeTeam : "",
+          awayTeam: m.matched ? m.awayTeam : "",
+          oddsHome: m.oddsHome,
+          oddsDraw: m.oddsDraw,
+          oddsAway: m.oddsAway,
+        }));
+        setResults(null);
+        setMatches(entries);
+        setPreview(matches);
+        setCurrentRoundNumber?.(parseInt(round));
+
+        const unmatched = matches.filter((m) => !m.matched).length;
+        const withOdds = matches.filter(
+          (m) => m.oddsHome && m.oddsDraw && m.oddsAway,
+        ).length;
+        const playedCount = matches.filter((m) => m.played).length;
+
+        toast.success(`Round ${round} synchronisé · ${entries.length} matchs`);
+        setStatus({
+          kind: unmatched ? "info" : "ok",
+          text: `Round ${round} → ${entries.length} matchs · ${withOdds} avec cotes${
+            playedCount ? ` · ${playedCount} déjà joué(s)` : ""
+          }${unmatched ? ` · ${unmatched} équipe(s) non reconnue(s)` : ""}.`,
+        });
+      }
+    } catch (e) {
+      toast.error(`Échec : ${(e as Error).message}`);
+    }
+    setLoading(false);
+  }
+
+  function loadIntoForm() {
+    if (!preview) return;
+    const entries: MatchEntry[] = preview.slice(0, 10).map((m) => ({
+      ...emptyMatch(),
+      homeTeam: m.matched ? m.homeTeam : "",
+      awayTeam: m.matched ? m.awayTeam : "",
+      oddsHome: m.oddsHome,
+      oddsDraw: m.oddsDraw,
+      oddsAway: m.oddsAway,
+    }));
+    setResults(null);
+    setMatches(entries);
+    setCurrentRoundNumber?.(parseInt(round));
+    toast.success(`Rechargé ${entries.length} matchs`);
+  }
+
+  async function handleScanStatuses() {
+    setScanning(true);
+    try {
+      const cat = await ensureCat();
+      const sts = await scanRoundStatuses(LEAGUE_ID, cat);
+      setStatuses(sts);
+      const playedRounds = sts.filter(
+        (s) => s.played === s.total && s.total > 0,
+      ).length;
+      toast.success(`Scan terminé · ${playedRounds} rounds complets`);
+    } catch (e) {
+      toast.error(`Scan échoué : ${(e as Error).message}`);
+    }
+    setScanning(false);
+  }
+
+  async function handleValidateRound(roundNumber: number) {
+    setValidatingRound(roundNumber);
+    try {
+      const cat = await ensureCat();
+      const { matches } = await fetchRound(LEAGUE_ID, String(roundNumber), cat);
+      const playedMatches = matches.filter(
+        (m) =>
+          m.played && m.finalScoreHome !== undefined && m.finalScoreAway !== undefined,
+      );
+      const history = await getPredictionHistory();
+      const pending = history.filter(
+        (h) => !h.validated && h.roundNumber === roundNumber,
+      );
+
+      let validated = 0;
+      for (const m of playedMatches) {
+        const pred = pending.find(
+          (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
+        );
+        if (pred) {
+          await updateModelWeights(pred, {
+            home: m.finalScoreHome!,
+            away: m.finalScoreAway!,
+          });
+          validated++;
+        }
+      }
+
+      const sts = await scanRoundStatuses(LEAGUE_ID, cat);
+      setStatuses(sts);
+
+      if (validated > 0) {
+        toast.success(
+          `Round ${roundNumber} validé · ${validated} prédiction(s) mise(s) à jour`,
+        );
+      } else {
+        toast(`Round ${roundNumber} n'a aucune prédiction en attente`, { icon: "ℹ️" });
+      }
+    } catch (e) {
+      toast.error(`Validation échouée : ${(e as Error).message}`);
+    }
+    setValidatingRound(null);
+  }
+
+  async function handleAutoValidate() {
+    setValidating(true);
+    try {
+      const cat = await ensureCat();
+      const [played, history] = await Promise.all([
+        fetchAllPlayedMatches(LEAGUE_ID, cat),
+        getPredictionHistory(),
+      ]);
+
+      const pending = history.filter((h) => !h.validated);
+      let validated = 0;
+
+      for (const r of played) {
+        for (const m of r.matches) {
+          if (m.finalScoreHome === undefined || m.finalScoreAway === undefined) continue;
+          const pred = pending.find(
+            (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
+          );
+          if (pred) {
+            await updateModelWeights(pred, {
+              home: m.finalScoreHome,
+              away: m.finalScoreAway,
+            });
+            validated++;
+          }
+        }
+      }
+
+      const sts = await scanRoundStatuses(LEAGUE_ID, cat);
+      setStatuses(sts);
+
+      if (validated > 0) {
+        toast.success(`${validated} prédiction(s) auto-validée(s)`);
+      } else {
+        toast("Aucune prédiction en attente trouvée", { icon: "ℹ️" });
+      }
+    } catch (e) {
+      toast.error(`Auto-validation échouée : ${(e as Error).message}`);
+    }
+    setValidating(false);
+  }
+
+  const fullyPlayedRounds = statuses
+    .filter((s) => s.total > 0 && s.played === s.total)
+    .map((s) => s.round);
+
+  return (
+    <div className="space-y-3 border border-border bg-panel p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="size-1.5 animate-pulse bg-cyan" />
+          <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-cyan">
+            Sporty-Tech Live Sync
+          </span>
+          {activeCat && (
+            <span className="font-mono text-[10px] text-muted-foreground">
+              · cat {activeCat}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((s) => !s)}
+          className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground"
+        >
+          {showAdvanced ? "✕ Fermer" : "⚙ Avancé"}
+        </button>
+      </div>
+
+      {showAdvanced && (
+        <div className="space-y-1">
+          <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            eventCategoryId (override)
+          </label>
+          <input
+            value={eventCategoryId}
+            onChange={(e) => setEventCategoryId(e.target.value)}
+            placeholder="auto-découvert"
+            className="w-full border border-border bg-background px-3 py-2 font-mono text-sm focus:border-cyan focus:outline-none"
+          />
+          <p className="font-mono text-[10px] text-muted-foreground">
+            Laisser vide pour découverte auto · leagueId fixé à {LEAGUE_ID}
+          </p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto]">
+        <div className="flex flex-col gap-1">
+          <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Round (1-38)
+          </label>
+          <select
+            value={round}
+            onChange={(e) => setRound(e.target.value)}
+            className="border border-border bg-background px-3 py-2 font-mono text-sm focus:border-cyan focus:outline-none"
+          >
+            {Array.from({ length: 38 }, (_, i) => i + 1).map((n) => {
+              const st = statuses.find((s) => s.round === n);
+              const tag = st
+                ? st.played === st.total && st.total > 0
+                  ? " ✓"
+                  : st.played > 0
+                    ? ` ${st.played}/${st.total}`
+                    : " ◯"
+                : "";
+              return (
+                <option key={n} value={n}>
+                  Round {n}
+                  {tag}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={handleSyncRound}
+          disabled={loading}
+          className="self-end border border-cyan bg-cyan/10 px-3 py-2 font-mono text-xs font-bold uppercase tracking-widest text-cyan transition-colors hover:bg-cyan/20 disabled:opacity-40"
+        >
+          {loading ? "⟳" : "⬇"} Sync round
+        </button>
+        <button
+          type="button"
+          onClick={handleScanStatuses}
+          disabled={scanning}
+          className="self-end border border-border bg-background px-3 py-2 font-mono text-xs uppercase tracking-widest text-foreground transition-colors hover:bg-panel-hover disabled:opacity-40"
+        >
+          {scanning ? "⟳ Scan…" : "🔍 Scan statuts"}
+        </button>
+      </div>
+
+      {fullyPlayedRounds.length > 0 && (
+        <div className="space-y-2 border-t border-border pt-3">
+          <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Rounds complets disponibles pour validation
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {fullyPlayedRounds.map((rn) => (
+              <button
+                key={rn}
+                type="button"
+                onClick={() => handleValidateRound(rn)}
+                disabled={validatingRound === rn}
+                className="border border-lime bg-lime/10 px-3 py-1.5 font-mono text-xs text-lime transition-colors hover:bg-lime/20 disabled:opacity-40"
+              >
+                {validatingRound === rn ? "⟳" : "✓"} Round {rn}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={handleAutoValidate}
+        disabled={validating}
+        className="w-full border border-lime bg-lime/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-lime transition-colors hover:bg-lime/20 disabled:opacity-40"
+      >
+        {validating ? "⟳ Validation…" : "✓ Auto-valider tous les rounds"}
+      </button>
+
+      {statuses.length > 0 && (
+        <div className="space-y-2 border-t border-border pt-3">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              Statuts des rounds
+            </span>
+            <div className="flex items-center gap-2 font-mono text-[9px] uppercase text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <span className="size-1.5 bg-lime" /> Complet
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="size-1.5 bg-warn" /> Partiel
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="size-1.5 bg-border" /> À venir
+              </span>
+            </div>
+          </div>
+          <div className="grid grid-cols-10 gap-1">
+            {statuses.map((s) => {
+              const fully = s.total > 0 && s.played === s.total;
+              const partial = s.played > 0 && !fully;
+              return (
+                <button
+                  key={s.round}
+                  type="button"
+                  onClick={() => setRound(String(s.round))}
+                  title={`Round ${s.round} · ${s.played}/${s.total} joué(s)`}
+                  className={cn(
+                    "aspect-square border font-mono text-[10px] transition-colors",
+                    fully &&
+                      "border-lime/60 bg-lime/20 text-lime hover:bg-lime/30",
+                    partial &&
+                      "border-warn/60 bg-warn/20 text-warn hover:bg-warn/30",
+                    !fully &&
+                      !partial &&
+                      "border-border bg-background text-muted-foreground hover:border-foreground/40",
+                    String(s.round) === round && "ring-1 ring-cyan",
+                  )}
+                >
+                  {s.round}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {status && (
+        <div
+          className={cn(
+            "border p-2 font-mono text-[11px]",
+            status.kind === "ok" && "border-lime/40 bg-lime/5 text-lime",
+            status.kind === "info" && "border-warn/40 bg-warn/5 text-warn",
+            status.kind === "err" && "border-danger/40 bg-danger/5 text-danger",
+          )}
+        >
+          {status.text}
+        </div>
+      )}
+
+      {preview && (
+        <div className="space-y-2 border-t border-border pt-3">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              Aperçu · {preview.length} match{preview.length > 1 ? "s" : ""}
+            </span>
+            <button
+              type="button"
+              onClick={loadIntoForm}
+              className="font-mono text-[10px] uppercase tracking-widest text-cyan hover:opacity-70"
+            >
+              ⚡ Charger
+            </button>
+          </div>
+          <div className="space-y-1">
+            {preview.map((m, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between border border-border bg-background px-2 py-1.5 text-[11px]"
+              >
+                <div className="flex items-center gap-2">
+                  {m.played && (
+                    <span className="font-mono text-lime">
+                      FT {m.finalScoreHome}-{m.finalScoreAway}
+                    </span>
+                  )}
+                  {m.matched ? (
+                    <span className="text-foreground">
+                      {m.homeTeam} vs {m.awayTeam}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {m.rawHome} vs {m.rawAway} (?)
+                    </span>
+                  )}
+                </div>
+                <span className="font-mono text-muted-foreground">
+                  {m.oddsHome || "—"} · {m.oddsDraw || "—"} · {m.oddsAway || "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
