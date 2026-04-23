@@ -551,7 +551,7 @@ export function RoundSyncPanel({
         <div className="flex items-center gap-2">
           <span className="size-1.5 animate-pulse bg-cyan" />
           <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-cyan">
-            Sporty-Tech Live Sync
+            {t("sync.title")}
           </span>
           {activeCat && (
             <>
@@ -559,7 +559,7 @@ export function RoundSyncPanel({
                 · cat {activeCat}
               </span>
               <span className="border border-lime/60 bg-lime/10 px-1 font-mono text-[9px] uppercase text-lime">
-                ACTIVE
+                {t("sync.active")}
               </span>
             </>
           )}
@@ -569,7 +569,7 @@ export function RoundSyncPanel({
           onClick={() => setShowAdvanced((s) => !s)}
           className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground"
         >
-          {showAdvanced ? "✕ Fermer" : "⚙ Avancé"}
+          {showAdvanced ? `✕ ${t("sync.close")}` : `⚙ ${t("sync.advanced")}`}
         </button>
       </div>
 
@@ -577,7 +577,7 @@ export function RoundSyncPanel({
         <div className="space-y-3 border-t border-border pt-3">
           <div className="space-y-1">
             <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              eventCategoryId
+              {t("sync.eventCategoryId")}
             </label>
             <div className="flex gap-2">
               <input
@@ -587,7 +587,7 @@ export function RoundSyncPanel({
                   const v = e.target.value.trim();
                   if (v && v !== activeCat) handleChangeCategory(v);
                 }}
-                placeholder="auto-découvert"
+                placeholder={t("sync.autoDiscovered")}
                 className="flex-1 border border-border bg-background px-3 py-2 font-mono text-sm focus:border-cyan focus:outline-none"
               />
               <button
@@ -596,21 +596,21 @@ export function RoundSyncPanel({
                 disabled={discovering}
                 className="border border-cyan bg-cyan/10 px-3 py-2 font-mono text-xs uppercase tracking-widest text-cyan hover:bg-cyan/20 disabled:opacity-40"
               >
-                {discovering ? "⟳" : "🔍 Découvrir"}
+                {discovering ? "⟳" : `🔍 ${t("sync.discover")}`}
               </button>
             </div>
             <p className="font-mono text-[10px] text-muted-foreground">
-              LeagueId : {LEAGUE_ID} ·{" "}
+              {t("sync.leagueId")}: {LEAGUE_ID} ·{" "}
               {availableCategories.length > 0
-                ? `${availableCategories.length} trouvée(s)`
-                : "Utiliser 'Découvrir' pour scanner les saisons"}
+                ? t("sync.foundCount", { count: availableCategories.length })
+                : t("sync.useDiscover")}
             </p>
           </div>
 
           {availableCategories.length > 0 && (
             <div className="space-y-1">
               <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                Catégories disponibles
+                {t("sync.availableCategories")}
               </div>
               <div className="space-y-1">
                 {availableCategories.map((cat) => (
@@ -626,12 +626,12 @@ export function RoundSyncPanel({
                     )}
                   >
                     <span>cat {cat.id}</span>
-                    <span>{cat.roundCount} matchs/round</span>
+                    <span>{cat.roundCount} {t("sync.matchesPerRound")}</span>
                   </button>
                 ))}
               </div>
               <p className="font-mono text-[10px] text-warn">
-                ⚠ Changer = nouvelle saison. L'historique reste en base.
+                {t("sync.changeWarning")}
               </p>
             </div>
           )}
@@ -641,7 +641,7 @@ export function RoundSyncPanel({
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto]">
         <div className="flex flex-col gap-1">
           <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Round (1-38)
+            {t("sync.roundLabel")}
           </label>
           <select
             value={round}
@@ -659,7 +659,7 @@ export function RoundSyncPanel({
                 : "";
               return (
                 <option key={n} value={n}>
-                  Round {n}
+                  {t("history.round")} {n}
                   {tag}
                 </option>
               );
@@ -672,7 +672,7 @@ export function RoundSyncPanel({
           disabled={loading}
           className="self-end border border-cyan bg-cyan/10 px-3 py-2 font-mono text-xs font-bold uppercase tracking-widest text-cyan transition-colors hover:bg-cyan/20 disabled:opacity-40"
         >
-          {loading ? "⟳" : "⬇"} Sync
+          {loading ? "⟳" : "⬇"} {t("sync.sync")}
         </button>
         <button
           type="button"
