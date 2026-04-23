@@ -1,13 +1,16 @@
 import React from "react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
+  const { t } = useTranslation();
+  const target = theme === "dark" ? t("theme.light") : t("theme.dark");
   return (
     <button
       onClick={toggleTheme}
       className="border border-border bg-panel p-2 text-muted-foreground transition-colors hover:bg-panel-hover hover:text-foreground"
-      title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+      title={t("theme.switchTo", { theme: target })}
     >
       {theme === "dark" ? (
         <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

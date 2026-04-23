@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   fetchRound,
   scanRoundStatuses,
   fetchAllPlayedMatches,
   discoverAllCategories,
+  rescanPartialRounds,
+  seedScoreCache,
   type SportyMatch,
   type RoundStatus,
 } from "@/lib/sportyApi";
@@ -12,6 +15,7 @@ import {
   updateModelWeights,
   savePrediction,
   getLearningStats,
+  getValidatedScoresMap,
 } from "@/lib/cloudLearning";
 import { predict } from "@/lib/prediction";
 import { getUserConfig, setEventCategoryId as persistEventCategoryId } from "@/lib/userConfig";
@@ -34,6 +38,7 @@ export function RoundSyncPanel({
   setResults,
   setCurrentRoundNumber,
 }: Props) {
+  const { t } = useTranslation();
   const [eventCategoryId, setEventCategoryIdState] = useState("");
   const [round, setRound] = useState("1");
   const [loading, setLoading] = useState(false);
@@ -55,6 +60,27 @@ export function RoundSyncPanel({
   const [availableCategories, setAvailableCategories] = useState<
     { id: string; roundCount: number }[]
   >([]);
+  const [rescanning, setRescanning] = useState(false);
+
+  // Seed local score cache from validated predictions in Supabase so that
+  // partial rounds (where the API has already purged some scores) can still
+  // be reconstructed from history.
+  useEffect(() => {
+    (async () => {
+      try {
+        const map = await getValidatedScoresMap();
+        const remapped: Record<string, { home: number; away: number }> = {};
+        for (const [key, v] of Object.entries(map)) remapped[key] = v;
+        const added = seedScoreCache(remapped);
+        if (added > 0) {
+          // silent — just informational in console
+          console.info(`[scoreCache] seeded ${added} score(s) from Supabase`);
+        }
+      } catch {
+        /* silent */
+      }
+    })();
+  }, []);
 
   // Load persisted config on mount; fall back to API discovery
   useEffect(() => {
@@ -173,16 +199,60 @@ export function RoundSyncPanel({
     setScanning(true);
     try {
       const cat = await ensureCat();
+      // Re-seed from Supabase right before scanning so any newly validated
+      // scores are available to combineRoundData via the local cache.
+      try {
+        const map = await getValidatedScoresMap();
+        seedScoreCache(map);
+      } catch {
+        /* silent */
+      }
       const sts = await scanRoundStatuses(LEAGUE_ID, cat);
       setStatuses(sts);
       const playedRounds = sts.filter(
         (s) => s.played === s.total && s.total > 0,
       ).length;
-      toast.success(`Scan terminé · ${playedRounds} rounds complets`);
+      toast.success(t("sync.scanDone", { count: playedRounds }));
     } catch (e) {
-      toast.error(`Scan échoué : ${(e as Error).message}`);
+      toast.error(t("sync.scanFailed", { error: (e as Error).message }));
     }
     setScanning(false);
+  }
+
+  async function handleRescanPartial() {
+    const partial = statuses
+      .filter((s) => s.total > 0 && s.played > 0 && s.played < s.total)
+      .map((s) => s.round);
+    if (partial.length === 0) {
+      toast(t("sync.noPlayed"), { icon: "ℹ️" });
+      return;
+    }
+    setRescanning(true);
+    try {
+      const cat = await ensureCat();
+      // Refresh seed first
+      try {
+        const map = await getValidatedScoresMap();
+        seedScoreCache(map);
+      } catch {
+        /* silent */
+      }
+      const { filled, statuses: updated } = await rescanPartialRounds(
+        LEAGUE_ID,
+        cat,
+        partial,
+      );
+      // Merge updated statuses into the existing list
+      setStatuses((prev) => {
+        const map = new Map(prev.map((s) => [s.round, s]));
+        for (const s of updated) map.set(s.round, s);
+        return [...map.values()].sort((a, b) => a.round - b.round);
+      });
+      toast.success(t("sync.rescanDone", { filled }));
+    } catch (e) {
+      toast.error(t("sync.scanFailed", { error: (e as Error).message }));
+    }
+    setRescanning(false);
   }
 
   async function handleValidateRound(roundNumber: number) {
@@ -481,7 +551,7 @@ export function RoundSyncPanel({
         <div className="flex items-center gap-2">
           <span className="size-1.5 animate-pulse bg-cyan" />
           <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-cyan">
-            Sporty-Tech Live Sync
+            {t("sync.title")}
           </span>
           {activeCat && (
             <>
@@ -489,7 +559,7 @@ export function RoundSyncPanel({
                 · cat {activeCat}
               </span>
               <span className="border border-lime/60 bg-lime/10 px-1 font-mono text-[9px] uppercase text-lime">
-                ACTIVE
+                {t("sync.active")}
               </span>
             </>
           )}
@@ -499,7 +569,7 @@ export function RoundSyncPanel({
           onClick={() => setShowAdvanced((s) => !s)}
           className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground"
         >
-          {showAdvanced ? "✕ Fermer" : "⚙ Avancé"}
+          {showAdvanced ? `✕ ${t("sync.close")}` : `⚙ ${t("sync.advanced")}`}
         </button>
       </div>
 
@@ -507,7 +577,7 @@ export function RoundSyncPanel({
         <div className="space-y-3 border-t border-border pt-3">
           <div className="space-y-1">
             <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              eventCategoryId
+              {t("sync.eventCategoryId")}
             </label>
             <div className="flex gap-2">
               <input
@@ -517,7 +587,7 @@ export function RoundSyncPanel({
                   const v = e.target.value.trim();
                   if (v && v !== activeCat) handleChangeCategory(v);
                 }}
-                placeholder="auto-découvert"
+                placeholder={t("sync.autoDiscovered")}
                 className="flex-1 border border-border bg-background px-3 py-2 font-mono text-sm focus:border-cyan focus:outline-none"
               />
               <button
@@ -526,21 +596,21 @@ export function RoundSyncPanel({
                 disabled={discovering}
                 className="border border-cyan bg-cyan/10 px-3 py-2 font-mono text-xs uppercase tracking-widest text-cyan hover:bg-cyan/20 disabled:opacity-40"
               >
-                {discovering ? "⟳" : "🔍 Découvrir"}
+                {discovering ? "⟳" : `🔍 ${t("sync.discover")}`}
               </button>
             </div>
             <p className="font-mono text-[10px] text-muted-foreground">
-              LeagueId : {LEAGUE_ID} ·{" "}
+              {t("sync.leagueId")}: {LEAGUE_ID} ·{" "}
               {availableCategories.length > 0
-                ? `${availableCategories.length} trouvée(s)`
-                : "Utiliser 'Découvrir' pour scanner les saisons"}
+                ? t("sync.foundCount", { count: availableCategories.length })
+                : t("sync.useDiscover")}
             </p>
           </div>
 
           {availableCategories.length > 0 && (
             <div className="space-y-1">
               <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                Catégories disponibles
+                {t("sync.availableCategories")}
               </div>
               <div className="space-y-1">
                 {availableCategories.map((cat) => (
@@ -556,12 +626,12 @@ export function RoundSyncPanel({
                     )}
                   >
                     <span>cat {cat.id}</span>
-                    <span>{cat.roundCount} matchs/round</span>
+                    <span>{cat.roundCount} {t("sync.matchesPerRound")}</span>
                   </button>
                 ))}
               </div>
               <p className="font-mono text-[10px] text-warn">
-                ⚠ Changer = nouvelle saison. L'historique reste en base.
+                {t("sync.changeWarning")}
               </p>
             </div>
           )}
@@ -571,7 +641,7 @@ export function RoundSyncPanel({
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto]">
         <div className="flex flex-col gap-1">
           <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Round (1-38)
+            {t("sync.roundLabel")}
           </label>
           <select
             value={round}
@@ -589,7 +659,7 @@ export function RoundSyncPanel({
                 : "";
               return (
                 <option key={n} value={n}>
-                  Round {n}
+                  {t("history.round")} {n}
                   {tag}
                 </option>
               );
@@ -602,7 +672,7 @@ export function RoundSyncPanel({
           disabled={loading}
           className="self-end border border-cyan bg-cyan/10 px-3 py-2 font-mono text-xs font-bold uppercase tracking-widest text-cyan transition-colors hover:bg-cyan/20 disabled:opacity-40"
         >
-          {loading ? "⟳" : "⬇"} Sync
+          {loading ? "⟳" : "⬇"} {t("sync.sync")}
         </button>
         <button
           type="button"
@@ -610,14 +680,14 @@ export function RoundSyncPanel({
           disabled={scanning}
           className="self-end border border-border bg-background px-3 py-2 font-mono text-xs uppercase tracking-widest text-foreground transition-colors hover:bg-panel-hover disabled:opacity-40"
         >
-          {scanning ? "⟳" : "🔍"} Scan
+          {scanning ? "⟳" : "🔍"} {t("sync.scan")}
         </button>
       </div>
 
       {fullyPlayedRounds.length > 0 && (
         <div className="space-y-2 border-t border-border pt-3">
           <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Rounds complets disponibles
+            {t("sync.completedRounds")}
           </div>
           <div className="flex flex-wrap gap-2">
             {fullyPlayedRounds.map((rn) => (
@@ -641,16 +711,21 @@ export function RoundSyncPanel({
             <div className="flex items-center gap-2">
               <span className="animate-spin font-mono text-cyan">⟳</span>
               <span className="font-mono text-xs font-bold uppercase tracking-widest text-cyan">
-                Entraînement IA en cours...
+                {t("sync.training")}
               </span>
             </div>
             {trainingProgress.total > 0 && (
               <div className="space-y-1">
                 <div className="flex justify-between font-mono text-[10px] text-muted-foreground">
                   <span>
-                    Round {trainingProgress.current}/{trainingProgress.total}
+                    {t("sync.trainProgress", {
+                      current: trainingProgress.current,
+                      total: trainingProgress.total,
+                    })}
                   </span>
-                  <span>{trainingProgress.matchesFound} matchs trouvés</span>
+                  <span>
+                    {t("sync.matchesFound", { count: trainingProgress.matchesFound })}
+                  </span>
                 </div>
                 <div className="h-1 w-full bg-border">
                   <div
@@ -670,11 +745,11 @@ export function RoundSyncPanel({
             className="flex w-full items-center justify-center gap-2 border border-cyan bg-cyan/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-cyan transition-colors hover:bg-cyan/20"
           >
             <span>🧠</span>
-            <span>Entraîner l'IA (tous les rounds joués)</span>
+            <span>{t("sync.train")}</span>
           </button>
         )}
         <p className="font-mono text-[10px] text-muted-foreground">
-          Importe et valide automatiquement tous les matchs terminés
+          {t("sync.trainHint")}
         </p>
       </div>
 
@@ -684,27 +759,42 @@ export function RoundSyncPanel({
         disabled={validating}
         className="w-full border border-lime bg-lime/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-lime transition-colors hover:bg-lime/20 disabled:opacity-40"
       >
-        {validating ? "⟳ Validation…" : "✓ Auto-valider mes prédictions"}
+        {validating
+          ? `⟳ ${t("sync.validating")}`
+          : `✓ ${t("sync.autoValidate")}`}
       </button>
 
       {statuses.length > 0 && (
         <div className="space-y-2 border-t border-border pt-3">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              Statuts
+              {t("sync.statuses")}
             </span>
             <div className="flex items-center gap-2 font-mono text-[9px] uppercase text-muted-foreground">
               <span className="flex items-center gap-1">
-                <span className="size-1.5 bg-lime" /> Complet
+                <span className="size-1.5 bg-lime" /> {t("sync.complete")}
               </span>
               <span className="flex items-center gap-1">
-                <span className="size-1.5 bg-warn" /> Partiel
+                <span className="size-1.5 bg-warn" /> {t("sync.partial")}
               </span>
               <span className="flex items-center gap-1">
-                <span className="size-1.5 bg-border" /> À venir
+                <span className="size-1.5 bg-border" /> {t("sync.upcoming")}
               </span>
             </div>
           </div>
+
+          {statuses.some((s) => s.played > 0 && s.played < s.total) && (
+            <button
+              type="button"
+              onClick={handleRescanPartial}
+              disabled={rescanning}
+              className="w-full border border-warn bg-warn/10 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-warn transition-colors hover:bg-warn/20 disabled:opacity-40"
+            >
+              {rescanning ? "⟳ " : "🔁 "}
+              {t("sync.rescanPartial")}
+            </button>
+          )}
+
           <div className="grid grid-cols-10 gap-1">
             {statuses.map((s) => {
               const fully = s.total > 0 && s.played === s.total;
@@ -714,7 +804,7 @@ export function RoundSyncPanel({
                   key={s.round}
                   type="button"
                   onClick={() => setRound(String(s.round))}
-                  title={`Round ${s.round} · ${s.played}/${s.total}`}
+                  title={`${t("history.round")} ${s.round} · ${s.played}/${s.total}`}
                   className={cn(
                     "aspect-square border font-mono text-[10px] transition-colors",
                     fully && "border-lime/60 bg-lime/20 text-lime hover:bg-lime/30",
@@ -750,14 +840,14 @@ export function RoundSyncPanel({
         <div className="space-y-2 border-t border-border pt-3">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              Aperçu · {preview.length} match{preview.length > 1 ? "s" : ""}
+              {t("sync.preview")} · {preview.length}
             </span>
             <button
               type="button"
               onClick={loadIntoForm}
               className="font-mono text-[10px] uppercase tracking-widest text-cyan hover:opacity-70"
             >
-              ⚡ Charger
+              ⚡ {t("sync.load")}
             </button>
           </div>
           <div className="space-y-1">

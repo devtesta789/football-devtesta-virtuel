@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   MultiMatchTab,
   emptyMatch,
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/")({
 type Tab = "predict" | "history" | "ai";
 
 function Index() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("predict");
   const [matches, setMatches] = useState<MatchEntry[]>([emptyMatch()]);
   const [results, setResults] = useState<PredictionResult[] | null>(null);
@@ -28,13 +30,13 @@ function Index() {
       <nav className="border-b border-border">
         <div className="flex gap-1">
           <TabBtn active={tab === "predict"} onClick={() => setTab("predict")}>
-            🎯 Predict
+            🎯 {t("tabs.predict")}
           </TabBtn>
           <TabBtn active={tab === "history"} onClick={() => setTab("history")}>
-            ⏱ History
+            ⏱ {t("tabs.history")}
           </TabBtn>
           <TabBtn active={tab === "ai"} onClick={() => setTab("ai")}>
-            🧠 AI Dashboard
+            🧠 {t("tabs.ai")}
           </TabBtn>
         </div>
       </nav>
@@ -58,7 +60,7 @@ function Index() {
 
       <footer className="border-t border-border pt-4">
         <p className="text-center font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          Hybrid Poisson · Empirical SEH · Adaptive AI · v2.0
+          {t("app.footer")}
         </p>
       </footer>
     </div>
