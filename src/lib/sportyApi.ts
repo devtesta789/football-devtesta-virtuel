@@ -95,8 +95,7 @@ function extract1X2(ev: ApiEvent): { h: number; d: number; a: number } | null {
 }
 
 function finalFromGoals(goals: ApiGoal[] | undefined): { h: number; a: number } | null {
-  if (!goals) return null;
-  if (goals.length === 0) return { h: 0, a: 0 };
+  if (!goals || goals.length === 0) return null;
   const last = goals[goals.length - 1];
   if (typeof last.homeScore === "number" && typeof last.awayScore === "number") {
     return { h: Math.round(last.homeScore), a: Math.round(last.awayScore) };
@@ -104,9 +103,62 @@ function finalFromGoals(goals: ApiGoal[] | undefined): { h: number; a: number } 
   return null;
 }
 
+// Local cache to keep scores even after the API category rotates to a new season.
+// Sporty-Tech's virtual league recycles eventCategoryId quickly, so observed scores
+// must be persisted client-side or they become permanently unreachable.
+const SCORE_CACHE_KEY = "sporty.scoreCache.v1";
+type ScoreCache = Record<string, { h: number; a: number; ts: number }>;
+
+function scoreKey(round: number | string, home: string, away: string): string {
+  return `${round}|${home}|${away}`;
+}
+
+function loadScoreCache(): ScoreCache {
+  try {
+    return JSON.parse(localStorage.getItem(SCORE_CACHE_KEY) ?? "{}") as ScoreCache;
+  } catch {
+    return {};
+  }
+}
+
+function saveScoreCache(c: ScoreCache) {
+  try {
+    localStorage.setItem(SCORE_CACHE_KEY, JSON.stringify(c));
+  } catch {
+    /* quota */
+  }
+}
+
+export function rememberScore(
+  round: number | string,
+  home: string,
+  away: string,
+  h: number,
+  a: number,
+) {
+  const c = loadScoreCache();
+  c[scoreKey(round, home, away)] = { h, a, ts: Date.now() };
+  saveScoreCache(c);
+}
+
+export function recallScore(
+  round: number | string,
+  home: string,
+  away: string,
+): { h: number; a: number } | null {
+  const c = loadScoreCache();
+  const v = c[scoreKey(round, home, away)];
+  return v ? { h: v.h, a: v.a } : null;
+}
+
+export function getCachedScoreCount(): number {
+  return Object.keys(loadScoreCache()).length;
+}
+
 export function combineRoundData(
   matchesJson: unknown,
   playoutJson: unknown,
+  roundNumber?: number | string,
 ): SportyMatch[] {
   const md = matchesJson as { round?: { matches?: ApiEvent[] } } | null;
   const events = md?.round?.matches ?? [];
@@ -127,12 +179,26 @@ export function combineRoundData(
     const ma = matchTeam(rawAway);
     const mid = ev.id ?? 0;
     const goals = playoutMap.get(mid);
-    const score = finalFromGoals(goals);
+    let score = finalFromGoals(goals);
+
+    const homeName = mh ?? rawHome;
+    const awayName = ma ?? rawAway;
+
+    // Persist newly observed scores so they survive category rotation
+    if (score && roundNumber !== undefined) {
+      rememberScore(roundNumber, homeName, awayName, score.h, score.a);
+    }
+
+    // Fallback: recover from local cache when the API no longer exposes the score
+    if (!score && roundNumber !== undefined) {
+      const cached = recallScore(roundNumber, homeName, awayName);
+      if (cached) score = cached;
+    }
 
     out.push({
       matchId: mid,
-      homeTeam: mh ?? rawHome,
-      awayTeam: ma ?? rawAway,
+      homeTeam: homeName,
+      awayTeam: awayName,
       oddsHome: odds ? odds.h.toFixed(2) : "",
       oddsDraw: odds ? odds.d.toFixed(2) : "",
       oddsAway: odds ? odds.a.toFixed(2) : "",
@@ -179,7 +245,7 @@ export async function fetchRound(
   if (eventCategoryId) params.eventCategoryId = eventCategoryId;
   const env = await callProxy(params);
   const data = env.data as { matches?: unknown; playout?: unknown } | undefined;
-  const matches = combineRoundData(data?.matches, data?.playout);
+  const matches = combineRoundData(data?.matches, data?.playout, round);
   return { matches, eventCategoryId: env.eventCategoryId ?? eventCategoryId ?? "" };
 }
 
