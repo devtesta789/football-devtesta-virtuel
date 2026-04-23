@@ -14,7 +14,162 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      model_weights: {
+        Row: {
+          anti_trap_strength: number
+          draw_bias: number
+          ext_boost: number
+          form_weight: number
+          history_weight: number
+          home_advantage: number
+          id: string
+          lambda_boost: number
+          odds_weight: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anti_trap_strength?: number
+          draw_bias?: number
+          ext_boost?: number
+          form_weight?: number
+          history_weight?: number
+          home_advantage?: number
+          id?: string
+          lambda_boost?: number
+          odds_weight?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anti_trap_strength?: number
+          draw_bias?: number
+          ext_boost?: number
+          form_weight?: number
+          history_weight?: number
+          home_advantage?: number
+          id?: string
+          lambda_boost?: number
+          odds_weight?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      prediction_history: {
+        Row: {
+          away_team: string
+          confidence: number
+          created_at: string
+          home_team: string
+          id: string
+          is_validated: boolean
+          match_time: string | null
+          odds_away: number
+          odds_draw: number
+          odds_home: number
+          prediction_data: Json
+          real_score_away: number | null
+          real_score_home: number | null
+          round_number: number | null
+          score_away: number
+          score_home: number
+          user_id: string
+          value_bet: string | null
+          value_bet_odds: number | null
+          value_bet_proba: number | null
+          win_prob: number
+          winner: string
+          winner_label: string
+        }
+        Insert: {
+          away_team: string
+          confidence: number
+          created_at?: string
+          home_team: string
+          id?: string
+          is_validated?: boolean
+          match_time?: string | null
+          odds_away: number
+          odds_draw: number
+          odds_home: number
+          prediction_data?: Json
+          real_score_away?: number | null
+          real_score_home?: number | null
+          round_number?: number | null
+          score_away: number
+          score_home: number
+          user_id: string
+          value_bet?: string | null
+          value_bet_odds?: number | null
+          value_bet_proba?: number | null
+          win_prob: number
+          winner: string
+          winner_label: string
+        }
+        Update: {
+          away_team?: string
+          confidence?: number
+          created_at?: string
+          home_team?: string
+          id?: string
+          is_validated?: boolean
+          match_time?: string | null
+          odds_away?: number
+          odds_draw?: number
+          odds_home?: number
+          prediction_data?: Json
+          real_score_away?: number | null
+          real_score_home?: number | null
+          round_number?: number | null
+          score_away?: number
+          score_home?: number
+          user_id?: string
+          value_bet?: string | null
+          value_bet_odds?: number | null
+          value_bet_proba?: number | null
+          win_prob?: number
+          winner?: string
+          winner_label?: string
+        }
+        Relationships: []
+      }
+      team_memory: {
+        Row: {
+          avg_goals_diff: number
+          id: string
+          overperform_count: number
+          team_name: string
+          total_matches: number
+          trap_count: number
+          underperform_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_goals_diff?: number
+          id?: string
+          overperform_count?: number
+          team_name: string
+          total_matches?: number
+          trap_count?: number
+          underperform_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_goals_diff?: number
+          id?: string
+          overperform_count?: number
+          team_name?: string
+          total_matches?: number
+          trap_count?: number
+          underperform_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
