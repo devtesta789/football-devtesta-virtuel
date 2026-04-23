@@ -151,7 +151,24 @@ export function RoundSyncPanel({
         (h) => !h.validated && h.roundNumber === roundNumber,
       );
 
+      if (pending.length === 0) {
+        toast(
+          `Round ${roundNumber} : aucune prédiction sauvegardée pour ce round`,
+          { icon: "ℹ️", duration: 4000 },
+        );
+        return;
+      }
+
+      if (playedMatches.length === 0) {
+        toast.error(
+          `Round ${roundNumber} : aucun score disponible. L'API Sporty-Tech n'expose pas encore les résultats. Réessayez après quelques minutes.`,
+          { duration: 6000 },
+        );
+        return;
+      }
+
       let validated = 0;
+      let notFound = 0;
       for (const m of playedMatches) {
         const pred = pending.find(
           (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
@@ -162,6 +179,8 @@ export function RoundSyncPanel({
             away: m.finalScoreAway!,
           });
           validated++;
+        } else {
+          notFound++;
         }
       }
 
@@ -170,10 +189,13 @@ export function RoundSyncPanel({
 
       if (validated > 0) {
         toast.success(
-          `Round ${roundNumber} validé · ${validated} prédiction(s) mise(s) à jour`,
+          `Round ${roundNumber} ✓ ${validated} validée(s)${notFound ? ` · ${notFound} sans correspondance` : ""}`,
         );
       } else {
-        toast(`Round ${roundNumber} n'a aucune prédiction en attente`, { icon: "ℹ️" });
+        toast.error(
+          `Round ${roundNumber} : ${playedMatches.length} match(s) joué(s) mais aucun ne correspond à vos prédictions sauvegardées`,
+          { duration: 5000 },
+        );
       }
     } catch (e) {
       toast.error(`Validation échouée : ${(e as Error).message}`);
@@ -191,8 +213,23 @@ export function RoundSyncPanel({
       ]);
 
       const pending = history.filter((h) => !h.validated);
-      let validated = 0;
 
+      if (pending.length === 0) {
+        toast("Aucune prédiction en attente de validation", { icon: "ℹ️" });
+        return;
+      }
+
+      const totalPlayed = played.reduce((a, r) => a + r.matches.length, 0);
+      if (totalPlayed === 0) {
+        toast.error(
+          `Aucun score disponible dans l'API · ${pending.length} prédiction(s) en attente. Sporty-Tech n'expose pas les résultats de ce championnat actuel.`,
+          { duration: 6000 },
+        );
+        return;
+      }
+
+      let validated = 0;
+      let predRoundMismatch = 0;
       for (const r of played) {
         for (const m of r.matches) {
           if (m.finalScoreHome === undefined || m.finalScoreAway === undefined) continue;
@@ -200,6 +237,9 @@ export function RoundSyncPanel({
             (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
           );
           if (pred) {
+            if (pred.roundNumber !== undefined && pred.roundNumber !== r.round) {
+              predRoundMismatch++;
+            }
             await updateModelWeights(pred, {
               home: m.finalScoreHome,
               away: m.finalScoreAway,
@@ -213,9 +253,17 @@ export function RoundSyncPanel({
       setStatuses(sts);
 
       if (validated > 0) {
-        toast.success(`${validated} prédiction(s) auto-validée(s)`);
+        toast.success(
+          `${validated} prédiction(s) auto-validée(s) sur ${pending.length} en attente`,
+        );
       } else {
-        toast("Aucune prédiction en attente trouvée", { icon: "ℹ️" });
+        toast.error(
+          `${totalPlayed} match(s) joué(s) trouvé(s) mais aucun ne correspond à vos ${pending.length} prédiction(s) en attente (vérifiez les noms d'équipes)`,
+          { duration: 6000 },
+        );
+      }
+      if (predRoundMismatch > 0) {
+        toast(`${predRoundMismatch} prédiction(s) sur un round différent`, { icon: "⚠️" });
       }
     } catch (e) {
       toast.error(`Auto-validation échouée : ${(e as Error).message}`);
