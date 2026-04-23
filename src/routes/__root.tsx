@@ -129,12 +129,19 @@ export const Route = createRootRoute({
           "Neural prediction engine for Premier League. Hybrid Poisson model with self-learning AI, value bets, and live round sync.",
       },
       { name: "theme-color", content: "#1a1a24" },
-      { property: "og:title", content: "English Predict Pro" },
+      { property: "og:title", content: "English Predict Pro — AI Football Predictions" },
       {
         property: "og:description",
         content: "AI-powered football prediction terminal.",
       },
       { property: "og:type", content: "website" },
+      { name: "twitter:title", content: "English Predict Pro — AI Football Predictions" },
+      { name: "description", content: "Adaptive football combiné prediction engine. 1-10 matchs, hybrid Poisson + empirical priors, learning AI." },
+      { property: "og:description", content: "Adaptive football combiné prediction engine. 1-10 matchs, hybrid Poisson + empirical priors, learning AI." },
+      { name: "twitter:description", content: "Adaptive football combiné prediction engine. 1-10 matchs, hybrid Poisson + empirical priors, learning AI." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/759aa5e4-7f6b-4854-8757-6b0eb44741ff" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/759aa5e4-7f6b-4854-8757-6b0eb44741ff" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       {
