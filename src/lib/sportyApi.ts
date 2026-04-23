@@ -155,6 +155,69 @@ export function getCachedScoreCount(): number {
   return Object.keys(loadScoreCache()).length;
 }
 
+/**
+ * Bulk-seed the local score cache from a remote source (e.g. validated
+ * predictions in Supabase). Useful to fill partial rounds whose scores
+ * have already been observed once but are no longer exposed by the API.
+ */
+export function seedScoreCache(
+  scores: Record<string, { home: number; away: number }>,
+): number {
+  const c = loadScoreCache();
+  let added = 0;
+  for (const [key, v] of Object.entries(scores)) {
+    if (!c[key]) added++;
+    c[key] = { h: v.home, a: v.away, ts: Date.now() };
+  }
+  saveScoreCache(c);
+  return added;
+}
+
+/**
+ * Re-scans only the partial rounds (where played < total) by re-fetching
+ * each of them. Returns how many new scores were captured into the cache.
+ * Use this to incrementally complete rounds whose results dripped in
+ * between earlier scans.
+ */
+export async function rescanPartialRounds(
+  leagueId: string,
+  eventCategoryId: string,
+  partialRounds: number[],
+  concurrency = 4,
+): Promise<{ filled: number; statuses: RoundStatus[] }> {
+  const before = loadScoreCache();
+  const beforeKeys = new Set(Object.keys(before));
+  const newStatuses: RoundStatus[] = [];
+
+  const chunks: number[][] = [];
+  for (let i = 0; i < partialRounds.length; i += concurrency) {
+    chunks.push(partialRounds.slice(i, i + concurrency));
+  }
+  for (const chunk of chunks) {
+    const results = await Promise.all(
+      chunk.map(async (r) => {
+        try {
+          const { matches } = await fetchRound(leagueId, String(r), eventCategoryId);
+          return {
+            round: r,
+            total: matches.length,
+            played: matches.filter((m) => m.played).length,
+          };
+        } catch {
+          return { round: r, total: 0, played: 0 };
+        }
+      }),
+    );
+    newStatuses.push(...results);
+  }
+
+  const after = loadScoreCache();
+  let filled = 0;
+  for (const k of Object.keys(after)) if (!beforeKeys.has(k)) filled++;
+
+  return { filled, statuses: newStatuses.sort((a, b) => a.round - b.round) };
+}
+
 export function combineRoundData(
   matchesJson: unknown,
   playoutJson: unknown,
