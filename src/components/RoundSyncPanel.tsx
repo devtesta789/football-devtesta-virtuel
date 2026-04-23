@@ -840,14 +840,14 @@ export function RoundSyncPanel({
         <div className="space-y-2 border-t border-border pt-3">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              Aperçu · {preview.length} match{preview.length > 1 ? "s" : ""}
+              {t("sync.preview")} · {preview.length}
             </span>
             <button
               type="button"
               onClick={loadIntoForm}
               className="font-mono text-[10px] uppercase tracking-widest text-cyan hover:opacity-70"
             >
-              ⚡ Charger
+              ⚡ {t("sync.load")}
             </button>
           </div>
           <div className="space-y-1">
