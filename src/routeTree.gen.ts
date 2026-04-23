@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicSportyRoundRouteImport } from './routes/api/public/sporty-round'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSportyRoundRoute = ApiPublicSportyRoundRouteImport.update({
+  id: '/api/public/sporty-round',
+  path: '/api/public/sporty-round',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/sporty-round': typeof ApiPublicSportyRoundRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/sporty-round': typeof ApiPublicSportyRoundRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/sporty-round': typeof ApiPublicSportyRoundRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/public/sporty-round'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/public/sporty-round'
+  id: '__root__' | '/' | '/api/public/sporty-round'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicSportyRoundRoute: typeof ApiPublicSportyRoundRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,12 +58,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/sporty-round': {
+      id: '/api/public/sporty-round'
+      path: '/api/public/sporty-round'
+      fullPath: '/api/public/sporty-round'
+      preLoaderRoute: typeof ApiPublicSportyRoundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicSportyRoundRoute: ApiPublicSportyRoundRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
