@@ -170,6 +170,8 @@ export const en = {
     risky: "⚠ Risky",
     generated_one: "{{count}} prediction generated",
     generated_other: "{{count}} predictions generated",
+    topPicks: "Top Picks (SAFE)",
+    noSafePicks: "No SAFE-tier picks in this combo. Run more predictions to unlock.",
   },
   ai: {
     loading: "Loading neural telemetry…",

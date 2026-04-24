@@ -177,6 +177,9 @@ export const fr: Translations = {
     risky: "⚠ Risqué",
     generated_one: "{{count}} prédiction générée",
     generated_other: "{{count}} prédictions générées",
+    topPicks: "Top Picks (SÛRS)",
+    noSafePicks:
+      "Aucun pick SÛR dans ce combiné. Lancez plus de prédictions pour en débloquer.",
   },
   ai: {
     loading: "Chargement de la télémétrie neurale…",

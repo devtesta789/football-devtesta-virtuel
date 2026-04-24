@@ -1,15 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { resetUserCache } from "@/lib/cloudLearning";
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (password: string) => boolean;
-  logout: () => void;
+  login: (password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const APP_PASSWORD = (import.meta.env.VITE_APP_PASSWORD as string | undefined) || "devtestapory";
-const STORAGE_KEY = "predictpro_authenticated";
+const FIXED_EMAIL = "devtesta789@gmail.com";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -20,22 +21,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       return;
     }
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setIsAuthenticated(stored === "true");
-    setIsLoading(false);
+    // Set up listener BEFORE getSession
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+      setIsLoading(false);
+    });
+    return () => {
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
-  const login = (password: string): boolean => {
-    if (password === APP_PASSWORD) {
-      localStorage.setItem(STORAGE_KEY, "true");
-      setIsAuthenticated(true);
-      return true;
-    }
-    return false;
+  const login = async (password: string): Promise<boolean> => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: FIXED_EMAIL,
+      password,
+    });
+    if (error) return false;
+    setIsAuthenticated(true);
+    return true;
   };
 
-  const logout = () => {
-    localStorage.removeItem(STORAGE_KEY);
+  const logout = async () => {
+    await supabase.auth.signOut();
+    resetUserCache();
     setIsAuthenticated(false);
   };
 

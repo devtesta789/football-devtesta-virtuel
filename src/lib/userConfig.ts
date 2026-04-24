@@ -18,10 +18,7 @@ async function getUserId(): Promise<string | null> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  if (session?.user) return session.user.id;
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error || !data.user) return null;
-  return data.user.id;
+  return session?.user?.id ?? null;
 }
 
 export async function getUserConfig(): Promise<UserConfig> {

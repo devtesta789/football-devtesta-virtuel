@@ -64,18 +64,20 @@ async function getUserId(): Promise<string | null> {
       userIdCache = session.user.id;
       return userIdCache;
     }
-    const { data, error } = await supabase.auth.signInAnonymously();
-    if (error || !data.user) {
-      console.error("Anonymous sign-in failed:", error);
-      return null;
-    }
-    userIdCache = data.user.id;
-    return userIdCache;
+    return null;
   })();
 
   const result = await userIdPromise;
   userIdPromise = null;
   return result;
+}
+
+// Reset cached user id (used on logout)
+export function resetUserCache() {
+  userIdCache = null;
+  userIdPromise = null;
+  weightsCache = null;
+  memoryCache = null;
 }
 
 export async function getModelWeights(): Promise<ModelWeights> {

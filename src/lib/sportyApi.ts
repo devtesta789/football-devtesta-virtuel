@@ -95,7 +95,8 @@ function extract1X2(ev: ApiEvent): { h: number; d: number; a: number } | null {
 }
 
 function finalFromGoals(goals: ApiGoal[] | undefined): { h: number; a: number } | null {
-  if (!goals || goals.length === 0) return null;
+  if (!goals) return null; // pas de playout → match non joué
+  if (goals.length === 0) return { h: 0, a: 0 }; // playout vide → score 0-0
   const last = goals[goals.length - 1];
   if (typeof last.homeScore === "number" && typeof last.awayScore === "number") {
     return { h: Math.round(last.homeScore), a: Math.round(last.awayScore) };
@@ -335,7 +336,7 @@ export async function scanRoundStatuses(
   leagueId: string,
   eventCategoryId: string,
   maxRound = 38,
-  concurrency = 10,
+  concurrency = 20,
 ): Promise<RoundStatus[]> {
   const out: RoundStatus[] = [];
   const rounds = Array.from({ length: maxRound }, (_, i) => i + 1);
@@ -371,7 +372,7 @@ export async function fetchAllPlayedMatches(
   leagueId: string,
   eventCategoryId: string,
   maxRound = 38,
-  concurrency = 10,
+  concurrency = 20,
 ): Promise<{ round: number; matches: SportyMatch[] }[]> {
   const out: { round: number; matches: SportyMatch[] }[] = [];
   const rounds = Array.from({ length: maxRound }, (_, i) => i + 1);

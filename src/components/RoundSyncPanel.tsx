@@ -350,22 +350,24 @@ export function RoundSyncPanel({
       }
 
       let validated = 0;
-      for (const r of played) {
-        for (const m of r.matches) {
-          if (m.finalScoreHome === undefined || m.finalScoreAway === undefined)
-            continue;
-          const pred = pending.find(
-            (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
-          );
-          if (pred) {
+      const results = await Promise.all(
+        played.flatMap((r) =>
+          r.matches.map(async (m) => {
+            if (m.finalScoreHome === undefined || m.finalScoreAway === undefined)
+              return false;
+            const pred = pending.find(
+              (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
+            );
+            if (!pred) return false;
             await updateModelWeights(pred, {
               home: m.finalScoreHome,
               away: m.finalScoreAway,
             });
-            validated++;
-          }
-        }
-      }
+            return true;
+          }),
+        ),
+      );
+      validated = results.filter(Boolean).length;
 
       const sts = await scanRoundStatuses(LEAGUE_ID, cat);
       setStatuses(sts);
