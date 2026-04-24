@@ -206,9 +206,16 @@ export function HistoryTab() {
                 : "X"
             : null;
         const winnerCorrect = realWinner === r.winnerLabel;
+        const isSafePick = safePickIds.has(id);
 
         return (
-          <div key={id} className="border border-border bg-panel">
+          <div
+            key={id}
+            className={cn(
+              "border bg-panel",
+              isSafePick ? "border-cyan/60" : "border-border",
+            )}
+          >
             <button
               type="button"
               onClick={() => setExpanded(open ? null : id)}
@@ -221,6 +228,28 @@ export function HistoryTab() {
                 {r.roundNumber && (
                   <span className="border border-border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
                     R{r.roundNumber}
+                  </span>
+                )}
+                {isSafePick && (
+                  <span
+                    title={t("historyExtra.safePickTitle")}
+                    className="border border-cyan bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-cyan"
+                  >
+                    ★ {t("historyExtra.safePick")}
+                  </span>
+                )}
+                {isSafePick && r.validated && (
+                  <span
+                    className={cn(
+                      "border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest",
+                      winnerCorrect
+                        ? "border-lime bg-lime/10 text-lime"
+                        : "border-danger bg-danger/10 text-danger",
+                    )}
+                  >
+                    {winnerCorrect
+                      ? t("historyExtra.pickHit")
+                      : t("historyExtra.pickMiss")}
                   </span>
                 )}
                 {matchDate && (
