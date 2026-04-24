@@ -226,8 +226,8 @@ export function MultiMatchTab({
           <div className="space-y-3 border border-border bg-panel p-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                  {t("prediction.combinedSequence")}
+                <div className="font-mono text-[10px] uppercase tracking-widest text-cyan">
+                  {t("prediction.topPicks")}
                 </div>
                 <div className="font-mono text-sm font-bold text-foreground">
                   {t("prediction.matches", { count: results.length })}
@@ -241,23 +241,43 @@ export function MultiMatchTab({
                 {t("prediction.newCombo")}
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-3 border-t border-border pt-3">
-              <div>
-                <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                  {t("prediction.cumulatedOdds")}
-                </div>
-                <div className="tabular-nums font-mono text-lg font-bold text-cyan">
-                  @{combinedOdds!.toFixed(2)}
-                </div>
-              </div>
-              <div>
-                <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                  {t("prediction.jointProbability")}
-                </div>
-                <div className="tabular-nums font-mono text-lg font-bold text-lime">
-                  {(combinedProb! * 100).toFixed(1)}%
-                </div>
-              </div>
+            <div className="space-y-2 border-t border-border pt-3">
+              {(() => {
+                const safe = results
+                  .filter((r) => r.confidenceTier === "SAFE")
+                  .sort((a, b) => b.winProb - a.winProb)
+                  .slice(0, 3);
+                if (safe.length === 0) {
+                  return (
+                    <div className="font-mono text-xs text-muted-foreground">
+                      {t("prediction.noSafePicks")}
+                    </div>
+                  );
+                }
+                return safe.map((r, i) => {
+                  const odds =
+                    r.winnerLabel === "1"
+                      ? r.oddsHome
+                      : r.winnerLabel === "2"
+                        ? r.oddsAway
+                        : r.oddsDraw;
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-2 border border-border bg-background px-3 py-2"
+                    >
+                      <span className="font-mono text-xs text-foreground">
+                        <span className="text-cyan">★</span> {r.homeTeam}{" "}
+                        {t("history.vs")} {r.awayTeam} → {r.winner} ({r.scoreHome}
+                        -{r.scoreAway})
+                      </span>
+                      <span className="tabular-nums font-mono text-xs text-lime whitespace-nowrap">
+                        @{odds.toFixed(2)} · {r.confidence.toFixed(0)}%
+                      </span>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
 
