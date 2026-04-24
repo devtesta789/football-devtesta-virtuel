@@ -87,50 +87,34 @@ export function MultiMatchTab({
       return;
     }
     setLoading(true);
-    const out: PredictionResult[] = [];
     const matchTime = new Date().toISOString();
+    const savedCategoryId =
+      localStorage.getItem("sporty.eventCategoryId") || undefined;
 
-    for (const m of matches) {
-      const r = await predict(
-        m.homeTeam,
-        m.awayTeam,
-        parseFloat(m.oddsHome),
-        parseFloat(m.oddsDraw),
-        parseFloat(m.oddsAway),
-      );
-      const savedCategoryId =
-        localStorage.getItem("sporty.eventCategoryId") || undefined;
-      const id = await savePrediction(
-        r,
-        currentRoundNumber,
-        matchTime,
-        savedCategoryId,
-      );
-      out.push({
-        ...r,
-        id: id ?? undefined,
-        roundNumber: currentRoundNumber,
-        matchTime,
-      });
-    }
+    const out = await Promise.all(
+      matches.map(async (m) => {
+        const r = await predict(
+          m.homeTeam,
+          m.awayTeam,
+          parseFloat(m.oddsHome),
+          parseFloat(m.oddsDraw),
+          parseFloat(m.oddsAway),
+        );
+        const id = await savePrediction(r, currentRoundNumber, matchTime, savedCategoryId);
+        return {
+          ...r,
+          id: id ?? undefined,
+          roundNumber: currentRoundNumber,
+          matchTime,
+        };
+      }),
+    );
 
     setResults(out);
     setExpanded(0);
     setLoading(false);
     toast.success(t("prediction.generated", { count: out.length }));
   }
-
-  const combinedOdds = results?.reduce(
-    (acc, r) =>
-      acc *
-      (r.winnerLabel === "1"
-        ? r.oddsHome
-        : r.winnerLabel === "2"
-          ? r.oddsAway
-          : r.oddsDraw),
-    1,
-  );
-  const combinedProb = results?.reduce((acc, r) => acc * r.winProb, 1);
 
   return (
     <div className="space-y-4">
