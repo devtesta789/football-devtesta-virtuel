@@ -82,6 +82,31 @@ export const Route = createFileRoute("/api/public/sporty-round")({
         const leagueId = url.searchParams.get("leagueId") ?? "8035";
         let eventCategoryId = url.searchParams.get("eventCategoryId") ?? "";
 
+        const roundParam = url.searchParams.get("round");
+        if (
+          roundParam &&
+          (!/^\d{1,2}$/.test(roundParam) ||
+            Number(roundParam) < 1 ||
+            Number(roundParam) > 38)
+        ) {
+          return Response.json(
+            { success: false, error: "Invalid round" },
+            { status: 400, headers: corsHeaders },
+          );
+        }
+        if (!/^\d{1,8}$/.test(leagueId)) {
+          return Response.json(
+            { success: false, error: "Invalid leagueId" },
+            { status: 400, headers: corsHeaders },
+          );
+        }
+        if (eventCategoryId && !/^\d{1,10}$/.test(eventCategoryId)) {
+          return Response.json(
+            { success: false, error: "Invalid eventCategoryId" },
+            { status: 400, headers: corsHeaders },
+          );
+        }
+
         try {
           if (action === "discover") {
             const id = await discoverCategoryId(leagueId);
@@ -182,9 +207,9 @@ export const Route = createFileRoute("/api/public/sporty-round")({
             { success: r.ok, data, eventCategoryId },
             { status: r.status, headers: corsHeaders },
           );
-        } catch (e) {
+        } catch {
           return Response.json(
-            { success: false, error: (e as Error).message },
+            { success: false, error: "Internal error" },
             { status: 500, headers: corsHeaders },
           );
         }

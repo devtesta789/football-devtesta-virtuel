@@ -10,15 +10,13 @@ export function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      const ok = login(password);
-      if (ok) toast.success(t("login.accessGranted"));
-      else toast.error(t("login.accessDenied"));
-      setIsLoading(false);
-    }, 300);
+    const ok = await login(password);
+    if (ok) toast.success(t("login.accessGranted"));
+    else toast.error(t("login.accessDenied"));
+    setIsLoading(false);
   };
 
   return (
