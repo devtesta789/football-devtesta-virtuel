@@ -65,6 +65,28 @@ export function HistoryTab() {
     ...new Set(items.map((i) => i.roundNumber).filter(Boolean) as number[]),
   ].sort((a, b) => b - a);
 
+  // Compute Top 3 SAFE picks per round (by winProb desc) so we can flag them in the list.
+  const safePickIds = React.useMemo(() => {
+    const byRound = new Map<number, PredictionResult[]>();
+    for (const it of items) {
+      if (!it.roundNumber || it.confidenceTier !== "SAFE") continue;
+      const arr = byRound.get(it.roundNumber) ?? [];
+      arr.push(it);
+      byRound.set(it.roundNumber, arr);
+    }
+    const ids = new Set<string>();
+    for (const arr of byRound.values()) {
+      arr
+        .sort((a, b) => b.winProb - a.winProb)
+        .slice(0, 3)
+        .forEach((p) => {
+          const key = p.id ?? `${p.timestamp}`;
+          ids.add(key);
+        });
+    }
+    return ids;
+  }, [items]);
+
   if (loading) {
     return (
       <div className="p-8 text-center font-mono text-xs uppercase tracking-widest text-muted-foreground">
