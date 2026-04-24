@@ -219,59 +219,63 @@ export function HistoryTab() {
             <button
               type="button"
               onClick={() => setExpanded(open ? null : id)}
-              className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-panel-hover"
+              className="flex w-full items-center justify-between gap-2 p-3 text-left transition-colors hover:bg-panel-hover sm:p-4"
             >
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="font-mono text-[10px] text-muted-foreground">
                   {date.toLocaleDateString()}
                 </span>
                 {r.roundNumber && (
-                  <span className="border border-border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+                  <span className="border border-border px-1 py-0.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground sm:px-1.5">
                     R{r.roundNumber}
                   </span>
                 )}
                 {isSafePick && (
                   <span
                     title={t("historyExtra.safePickTitle")}
-                    className="border border-cyan bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-cyan"
+                    className="border border-cyan bg-cyan/10 px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-cyan sm:px-1.5"
                   >
-                    ★ {t("historyExtra.safePick")}
+                    <span className="sm:hidden">★</span>
+                    <span className="hidden sm:inline">★ {t("historyExtra.safePick")}</span>
                   </span>
                 )}
                 {isSafePick && r.validated && (
                   <span
                     className={cn(
-                      "border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest",
+                      "border px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest sm:px-1.5",
                       winnerCorrect
                         ? "border-lime bg-lime/10 text-lime"
                         : "border-danger bg-danger/10 text-danger",
                     )}
                   >
-                    {winnerCorrect
-                      ? t("historyExtra.pickHit")
-                      : t("historyExtra.pickMiss")}
+                    <span className="sm:hidden">{winnerCorrect ? "✓" : "✗"}</span>
+                    <span className="hidden sm:inline">
+                      {winnerCorrect
+                        ? t("historyExtra.pickHit")
+                        : t("historyExtra.pickMiss")}
+                    </span>
                   </span>
                 )}
                 {matchDate && (
-                  <span className="font-mono text-[10px] text-muted-foreground">
+                  <span className="hidden font-mono text-[10px] text-muted-foreground sm:inline">
                     {matchDate.toLocaleTimeString("fr-FR", {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
                   </span>
                 )}
-                <span className="text-sm font-medium text-foreground">
+                <span className="w-full truncate text-xs font-medium text-foreground sm:w-auto sm:text-sm">
                   {r.homeTeam} {t("history.vs")} {r.awayTeam}
                 </span>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="tabular-nums font-mono text-sm font-bold text-cyan">
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+                <span className="tabular-nums font-mono text-xs font-bold text-cyan sm:text-sm">
                   {r.scoreHome}-{r.scoreAway}
                 </span>
                 {realScore && (
                   <span
                     className={cn(
-                      "tabular-nums border px-2 py-0.5 font-mono text-[10px]",
+                      "tabular-nums border px-1.5 py-0.5 font-mono text-[10px] sm:px-2",
                       winnerCorrect
                         ? "border-lime text-lime"
                         : "border-danger text-danger",
