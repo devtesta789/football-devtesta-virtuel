@@ -34,6 +34,10 @@ export const fr: Translations = {
     footer: "Personnel autorisé uniquement · Activité enregistrée",
     accessGranted: "Accès autorisé. Bienvenue.",
     accessDenied: "Mot de passe invalide. Accès refusé.",
+    errorMessage: "Mot de passe incorrect. Réessayez.",
+    attempts_one: "{{count}} tentative échouée",
+    attempts_other: "{{count}} tentatives échouées",
+    locked: "Trop de tentatives. Attendez {{seconds}}s avant de réessayer.",
   },
   history: {
     loading: "Chargement du registre…",
@@ -180,6 +184,12 @@ export const fr: Translations = {
     topPicks: "Top Picks (SÛRS)",
     noSafePicks:
       "Aucun pick SÛR dans ce combiné. Lancez plus de prédictions pour en débloquer.",
+  },
+  historyExtra: {
+    safePick: "IA SÛR",
+    safePickTitle: "Top 3 picks SÛRS détectés par l'IA pour ce round",
+    pickHit: "Pick ✓",
+    pickMiss: "Pick ✗",
   },
   ai: {
     loading: "Chargement de la télémétrie neurale…",

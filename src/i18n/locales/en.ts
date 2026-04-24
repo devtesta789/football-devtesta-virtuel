@@ -32,6 +32,10 @@ export const en = {
     footer: "Authorized personnel only · Activity is logged",
     accessGranted: "Access granted. Welcome back.",
     accessDenied: "Invalid password. Access denied.",
+    errorMessage: "Wrong password. Try again.",
+    attempts_one: "{{count}} failed attempt",
+    attempts_other: "{{count}} failed attempts",
+    locked: "Too many attempts. Wait {{seconds}}s before retrying.",
   },
   history: {
     loading: "Loading ledger…",
@@ -172,6 +176,12 @@ export const en = {
     generated_other: "{{count}} predictions generated",
     topPicks: "Top Picks (SAFE)",
     noSafePicks: "No SAFE-tier picks in this combo. Run more predictions to unlock.",
+  },
+  historyExtra: {
+    safePick: "AI SAFE",
+    safePickTitle: "Top 3 SAFE picks detected by AI for this round",
+    pickHit: "Pick ✓",
+    pickMiss: "Pick ✗",
   },
   ai: {
     loading: "Loading neural telemetry…",

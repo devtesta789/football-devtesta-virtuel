@@ -1,0 +1,25 @@
+{
+  "name": "English Predict Pro",
+  "short_name": "Predict Pro",
+  "description": "Neural prediction engine for Premier League. Hybrid Poisson model with self-learning AI.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1a24",
+  "theme_color": "#06b6d4",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
