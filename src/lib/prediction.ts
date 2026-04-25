@@ -8,10 +8,16 @@ export const TEAMS = [
 ].sort();
 
 const SCORE_PRIORS: Record<string, number> = {
-  "1-0": 0.41, "0-1": 1.65, "2-0": 0.96, "0-2": 0.53, "2-1": 2.0,
-  "1-2": 1.5, "3-0": 0.86, "0-3": 0.32, "3-1": 1.15, "1-3": 1.2,
-  "3-2": 1.54, "2-3": 1.35, "4-1": 0.55, "1-4": 2.81, "4-0": 0.6,
-  "0-4": 0.6, "1-1": 1.42, "2-2": 1.75, "3-3": 0.8, "0-0": 0.37,
+  // Draws — heavily under-weighted previously
+  "1-1": 2.85, "2-2": 2.60, "0-0": 0.90, "3-3": 0.18,
+  // Home wins
+  "2-1": 2.80, "2-0": 1.80, "1-0": 1.20, "3-1": 1.85, "3-0": 1.20,
+  "4-0": 1.10, "4-1": 0.85, "3-2": 1.40, "5-0": 0.55, "4-2": 0.30,
+  "5-1": 0.28, "6-0": 0.20,
+  // Away wins
+  "1-2": 2.50, "0-1": 2.00, "1-3": 1.20, "0-2": 1.10, "0-3": 0.55,
+  "2-3": 0.80, "1-4": 0.60, "0-4": 0.40, "0-5": 0.18, "1-5": 0.12,
+  "0-6": 0.10, "2-4": 0.12,
 };
 
 export interface PredictionResult {
@@ -95,12 +101,12 @@ function getBonus00(drawOdds: number): number {
 }
 
 const DYNAMIC_BONUS_10_MAP: [number, number, number, number, number, number][] = [
-  [1.00, 1.15, 0.60, 0.15, 1.55, 2.50],
-  [1.15, 1.35, 1.10, 0.35, 1.45, 1.80],
-  [1.35, 1.60, 1.45, 0.65, 1.15, 1.10],
-  [1.60, 2.00, 1.30, 0.90, 1.00, 0.80],
-  [2.00, 3.00, 1.10, 1.15, 0.90, 0.50],
-  [3.00, 999,  0.75, 1.40, 0.55, 0.15],
+  [1.00, 1.15, 0.55, 0.12, 1.40, 2.20],
+  [1.15, 1.35, 1.00, 0.30, 1.30, 1.60],
+  [1.35, 1.60, 1.40, 0.60, 1.05, 1.00],
+  [1.60, 2.00, 1.25, 0.85, 0.90, 0.75],
+  [2.00, 3.00, 1.05, 1.10, 0.80, 0.45],
+  [3.00, 999,  0.70, 1.30, 0.50, 0.12],
 ];
 
 function getScoreBonuses(homeOdds: number): { b10: number; b01: number; b20: number; b30: number } {
@@ -159,9 +165,9 @@ export async function predict(
   pDOM /= sum;
   pNUL /= sum;
   pEXT /= sum;
-  const ceilingNUL = regime.name === "DEFENSIVE" ? 0.40
-                   : regime.name === "OFFENSIVE" ? 0.25
-                   : 0.32;
+  const ceilingNUL = regime.name === "DEFENSIVE" ? 0.48
+                   : regime.name === "OFFENSIVE" ? 0.32
+                   : 0.40;
   if (pNUL > ceilingNUL) {
     const excess = pNUL - ceilingNUL;
     pNUL = ceilingNUL;
@@ -193,12 +199,15 @@ export async function predict(
   pNUL /= sumAfterPenalty;
   pEXT /= sumAfterPenalty;
 
+  // Boost de décision NUL : compense la sous-représentation systématique
+  const pNUL_decision = pNUL * 1.30;
+
   let winnerLabel: string;
   let winProb: number;
-  if (pDOM >= pEXT && pDOM >= pNUL) {
+  if (pDOM >= pEXT && pDOM >= pNUL_decision) {
     winnerLabel = "1";
     winProb = pDOM;
-  } else if (pEXT >= pNUL) {
+  } else if (pEXT >= pNUL_decision) {
     winnerLabel = "2";
     winProb = pEXT;
   } else {
@@ -211,14 +220,14 @@ export async function predict(
     impliedA = 1 / oddsAway;
   let valueBetType: "DOM" | "EXT" | "NUL" | null = null;
   let valueBetMarket = "";
-  if (pDOM > impliedH * 1.12) {
+  if (pDOM > impliedH * 1.07) {
     valueBetType = "DOM";
     valueBetMarket = "1";
-  } else if (pEXT > impliedA * 1.12) {
+  } else if (pEXT > impliedA * 1.07) {
     valueBetType = "EXT";
     valueBetMarket = "2";
   } else {
-    const nulThreshold = regime.name === "DEFENSIVE" ? 1.12 : 1.18;
+    const nulThreshold = regime.name === "DEFENSIVE" ? 1.07 : 1.10;
     if (pNUL > impliedD * nulThreshold) {
       valueBetType = "NUL";
       valueBetMarket = "X";
