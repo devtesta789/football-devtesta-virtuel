@@ -243,7 +243,7 @@ export async function predict(
       const key = `${i}-${j}`;
       const prior = SCORE_PRIORS[key] ?? 0.15;
       let prob = poisson(i, lH) * poisson(j, lA) * prior;
-      if (i === 0 && j === 0) prob *= getBonus00(oddsDraw);
+      if (i === 0 && j === 0) prob *= getBonus00(oddsDraw) * 1.15;
       else if (i === 1 && j === 1) prob *= 1.15;
       const bonuses = getScoreBonuses(oddsHome);
       if (i === 1 && j === 0) prob *= bonuses.b10;
@@ -252,8 +252,19 @@ export async function predict(
       else if (i === 3 && j === 0) prob *= bonuses.b30;
       else if (i === 0 && j === 2) prob *= bonuses.b01 * 0.9;
       else if (i === 0 && j === 3) prob *= bonuses.b30 * 0.5;
-      if (i + j >= 6) prob *= 0.5;
-      if (i >= 5 || j >= 5) prob *= 0.4;
+      // Bonus pour scores très fréquents en réalité (calibré sur 8 409 matchs)
+      if (i === 1 && j === 1) prob *= 2.20;
+      if (i === 2 && j === 2) prob *= 1.80;
+      if (i === 3 && j === 1) prob *= 1.55;
+      if (i === 1 && j === 3) prob *= 1.20;
+      if (i === 4 && j === 0) prob *= 1.40;
+      // Distinguer 1-1 vs 2-0 selon la cote du draw
+      if (i === 1 && j === 1 && oddsDraw < 3.5) prob *= 2.5;
+      if (i === 2 && j === 0 && oddsDraw > 4.0) prob *= 1.4;
+      // Pénalités assouplies pour gros scores
+      if (i + j >= 7) prob *= 0.35;
+      if (i + j === 6 && i !== 6 && j !== 6) prob *= 0.70;
+      if (i >= 6 || j >= 6) prob *= 0.30;
       candidates.push({ i, j, prob });
     }
   }
@@ -286,10 +297,17 @@ export async function predict(
   const confidence = winProb * 100;
   const confidenceStars =
     confidence >= 70 ? 5 : confidence >= 60 ? 4 : confidence >= 50 ? 3 : confidence >= 40 ? 2 : 1;
-  const confidenceTier: "SAFE" | "MEDIUM" | "AGGRESSIVE" =
-    confidence >= 60 ? "SAFE" : confidence >= 50 ? "MEDIUM" : "AGGRESSIVE";
 
-  const hotMatch = expectedTotal > 3.0 && Math.abs(pDOM - pEXT) < 0.15;
+  const expectedTotalForHot = lH + lA;
+  const hotMatch = expectedTotalForHot > 3.0 && Math.abs(pDOM - pEXT) < 0.15;
+  const isHighOdds = oddsHome > 1.8 && oddsAway > 1.8;
+  const confidenceTier: "SAFE" | "MEDIUM" | "AGGRESSIVE" =
+    hotMatch ? "AGGRESSIVE"
+    : confidence >= 60 && !isHighOdds ? "SAFE"
+    : confidence >= 60 && isHighOdds ? "MEDIUM"
+    : confidence >= 50 ? "MEDIUM"
+    : "AGGRESSIVE";
+
   const risky = confidence < 45 || pNUL > 0.28;
 
   const entropy = -topScores.reduce(
