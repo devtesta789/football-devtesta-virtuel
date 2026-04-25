@@ -61,6 +61,18 @@ export function RoundSyncPanel({
     { id: string; roundCount: number }[]
   >([]);
   const [rescanning, setRescanning] = useState(false);
+  const [autoMode, setAutoMode] = useState(false);
+
+  // Auto-mode: scan + auto-validate every 30s
+  useEffect(() => {
+    if (!autoMode) return;
+    const id = setInterval(async () => {
+      await handleScanStatuses();
+      await handleAutoValidate();
+    }, 30000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoMode]);
 
   // Seed local score cache from validated predictions in Supabase so that
   // partial rounds (where the API has already purged some scores) can still
@@ -210,6 +222,10 @@ export function RoundSyncPanel({
       }
       const sts = await scanRoundStatuses(LEAGUE_ID, cat);
       setStatuses(sts);
+      const r38 = sts.find((s) => s.round === 38);
+      if (r38 && r38.total > 0 && r38.played === r38.total) {
+        toast(t("sync.seasonEnded"), { icon: "🏁", duration: 10000 });
+      }
       const playedRounds = sts.filter(
         (s) => s.played === s.total && s.total > 0,
       ).length;
@@ -775,6 +791,19 @@ export function RoundSyncPanel({
         {validating
           ? `⟳ ${t("sync.validating")}`
           : `✓ ${t("sync.autoValidate")}`}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setAutoMode((v) => !v)}
+        className={cn(
+          "w-full border px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest transition-colors",
+          autoMode
+            ? "border-cyan bg-cyan/20 text-cyan"
+            : "border-border bg-background text-muted-foreground hover:border-foreground/40",
+        )}
+      >
+        {autoMode ? `🔄 ${t("sync.autoModeOn")}` : `🔄 ${t("sync.autoModeOff")}`}
       </button>
 
       {statuses.length > 0 && (

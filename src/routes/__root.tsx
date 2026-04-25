@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Outlet,
   createRootRoute,
@@ -11,6 +12,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LoginScreen } from "@/components/LoginScreen";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { UsageGuide } from "@/components/UsageGuide";
 import { useTranslation } from "react-i18next";
 import "@/i18n";
 
@@ -40,6 +42,7 @@ function NotFoundComponent() {
 function AppContent() {
   const { isAuthenticated, logout } = useAuth();
   const { t } = useTranslation();
+  const [guideOpen, setGuideOpen] = useState(false);
 
   if (!isAuthenticated) {
     return <LoginScreen />;
@@ -57,6 +60,14 @@ function AppContent() {
           </div>
           <div className="flex items-center gap-2">
             <LanguageToggle />
+            <button
+              type="button"
+              onClick={() => setGuideOpen(true)}
+              className="border border-border bg-panel px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:bg-panel-hover hover:text-foreground"
+              title={t("guide.help")}
+            >
+              ?
+            </button>
             <ThemeToggle />
             <button
               type="button"
@@ -72,6 +83,7 @@ function AppContent() {
       <main className="mx-auto max-w-5xl px-4 py-6">
         <Outlet />
       </main>
+      <UsageGuide open={guideOpen} onClose={() => setGuideOpen(false)} />
     </>
   );
 }
