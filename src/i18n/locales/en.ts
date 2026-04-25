@@ -222,6 +222,14 @@ export const en = {
     recDrawBias: "Draw bias is elevated. Watch for over-prediction of draws.",
     recTrapTeams: "Several trap teams detected. Penalties applied automatically.",
     recNominal: "System is in nominal range. Continue logging results.",
+    recNoDraws: "Model never predicts draws — check drawBias.",
+    recLowDrawAccuracy: "Low draw accuracy — recalibrate drawBias.",
+    recLowDomAccuracy: "Low DOM accuracy (< 50%) — reduce homeAdvantage.",
+    domAccuracy: "DOM accuracy",
+    extAccuracy: "EXT accuracy",
+    nulAccuracy: "NUL accuracy",
+    nulPredicted: "Draws predicted",
+    missedDraws: "Missed draws",
   },
 };
 
