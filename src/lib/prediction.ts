@@ -199,12 +199,15 @@ export async function predict(
   pNUL /= sumAfterPenalty;
   pEXT /= sumAfterPenalty;
 
+  // Boost de décision NUL : compense la sous-représentation systématique
+  const pNUL_decision = pNUL * 1.30;
+
   let winnerLabel: string;
   let winProb: number;
-  if (pDOM >= pEXT && pDOM >= pNUL) {
+  if (pDOM >= pEXT && pDOM >= pNUL_decision) {
     winnerLabel = "1";
     winProb = pDOM;
-  } else if (pEXT >= pNUL) {
+  } else if (pEXT >= pNUL_decision) {
     winnerLabel = "2";
     winProb = pEXT;
   } else {
@@ -217,14 +220,14 @@ export async function predict(
     impliedA = 1 / oddsAway;
   let valueBetType: "DOM" | "EXT" | "NUL" | null = null;
   let valueBetMarket = "";
-  if (pDOM > impliedH * 1.12) {
+  if (pDOM > impliedH * 1.07) {
     valueBetType = "DOM";
     valueBetMarket = "1";
-  } else if (pEXT > impliedA * 1.12) {
+  } else if (pEXT > impliedA * 1.07) {
     valueBetType = "EXT";
     valueBetMarket = "2";
   } else {
-    const nulThreshold = regime.name === "DEFENSIVE" ? 1.12 : 1.18;
+    const nulThreshold = regime.name === "DEFENSIVE" ? 1.07 : 1.10;
     if (pNUL > impliedD * nulThreshold) {
       valueBetType = "NUL";
       valueBetMarket = "X";
