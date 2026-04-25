@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { TEAMS } from "@/lib/prediction";
+import { getTeamReliability, type TeamReliability } from "@/lib/cloudLearning";
 import { cn } from "@/lib/utils";
 
 interface TeamSelectProps {
@@ -10,6 +11,13 @@ interface TeamSelectProps {
   disabledTeams?: string[];
 }
 
+function relDot(r: TeamReliability | undefined): string {
+  if (r === "low") return "🔴";
+  if (r === "medium") return "🟡";
+  if (r === "high") return "🟢";
+  return "";
+}
+
 export function TeamSelect({
   label,
   value,
@@ -17,6 +25,12 @@ export function TeamSelect({
   excludeTeam,
   disabledTeams = [],
 }: TeamSelectProps) {
+  const [reliability, setReliability] = useState<Record<string, TeamReliability>>({});
+
+  useEffect(() => {
+    getTeamReliability().then(setReliability);
+  }, []);
+
   return (
     <div className="flex flex-col gap-1">
       <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -33,8 +47,10 @@ export function TeamSelect({
         <option value="">— Select team —</option>
         {TEAMS.map((t) => {
           const disabled = t === excludeTeam || disabledTeams.includes(t);
+          const dot = relDot(reliability[t]);
           return (
             <option key={t} value={t} disabled={disabled}>
+              {dot ? `${dot} ` : ""}
               {t}
               {disabled ? " ✕" : ""}
             </option>
