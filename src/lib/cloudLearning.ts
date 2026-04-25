@@ -558,3 +558,24 @@ export async function getValidatedScoresMap(): Promise<
 }
 
 
+
+export async function getCurrentRegime(): Promise<{ name: string; avgGoals: number }> {
+  const userId = await getUserId();
+  if (!userId) return { name: "BALANCED", avgGoals: 2.4 };
+  const { data } = await supabase
+    .from("prediction_history")
+    .select("real_score_home, real_score_away")
+    .eq("user_id", userId)
+    .eq("is_validated", true)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  if (!data || data.length === 0) return { name: "BALANCED", avgGoals: 2.4 };
+  const totalGoals = data.reduce(
+    (sum, row) => sum + (row.real_score_home ?? 0) + (row.real_score_away ?? 0),
+    0,
+  );
+  const avg = totalGoals / data.length;
+  if (avg <= 2.0) return { name: "DEFENSIVE", avgGoals: avg };
+  if (avg >= 2.6) return { name: "OFFENSIVE", avgGoals: avg };
+  return { name: "BALANCED", avgGoals: avg };
+}
