@@ -340,6 +340,14 @@ export async function getLearningStats(): Promise<LearningStats> {
       trapTeams: [],
       overperformTeams: [],
       avoidTeams: [],
+      nulPredicted: 0,
+      nulReal: 0,
+      nulCorrect: 0,
+      missedDraws: 0,
+      extPredicted: 0,
+      domAccuracy: 0,
+      extAccuracy: 0,
+      nulAccuracy: 0,
     };
   }
 
