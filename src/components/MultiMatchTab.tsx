@@ -91,6 +91,12 @@ export function MultiMatchTab({
     const savedCategoryId =
       localStorage.getItem("sporty.eventCategoryId") || undefined;
 
+    const ultraFavCount = matches.filter((m) => {
+      const oh = parseFloat(m.oddsHome);
+      const oa = parseFloat(m.oddsAway);
+      return (oh && oh <= 1.30) || (oa && oa <= 1.30);
+    }).length;
+
     const out = await Promise.all(
       matches.map(async (m) => {
         const r = await predict(
@@ -99,6 +105,8 @@ export function MultiMatchTab({
           parseFloat(m.oddsHome),
           parseFloat(m.oddsDraw),
           parseFloat(m.oddsAway),
+          ultraFavCount >= 3 ? 0.93 : 1,
+          ultraFavCount >= 3 ? 1.03 : 1,
         );
         const id = await savePrediction(r, currentRoundNumber, matchTime, savedCategoryId);
         return {

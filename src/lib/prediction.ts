@@ -1,4 +1,4 @@
-import { getModelWeights, getTeamMemory, type ModelWeights } from "./cloudLearning";
+import { getModelWeights, getTeamMemory, getCurrentRegime, type ModelWeights } from "./cloudLearning";
 
 export const TEAMS = [
   "A. Villa", "Bournemouth", "Brentford", "Brighton", "Burnley",
@@ -82,15 +82,48 @@ function getTeamAdjustment(
   return { trapFactor, overperformFactor };
 }
 
+const DYNAMIC_BONUS_00_MAP: [number, number][] = [
+  [2.0, 1.85], [2.5, 1.17], [3.0, 0.85], [3.5, 0.60],
+  [5.0, 0.48], [10.0, 0.32], [999, 0.20],
+];
+
+function getBonus00(drawOdds: number): number {
+  for (const [mx, bonus] of DYNAMIC_BONUS_00_MAP) {
+    if (drawOdds < mx) return bonus;
+  }
+  return 0.20;
+}
+
+const DYNAMIC_BONUS_10_MAP: [number, number, number, number, number, number][] = [
+  [1.00, 1.15, 0.60, 0.15, 1.55, 2.50],
+  [1.15, 1.35, 1.10, 0.35, 1.45, 1.80],
+  [1.35, 1.60, 1.45, 0.65, 1.15, 1.10],
+  [1.60, 2.00, 1.30, 0.90, 1.00, 0.80],
+  [2.00, 3.00, 1.10, 1.15, 0.90, 0.50],
+  [3.00, 999,  0.75, 1.40, 0.55, 0.15],
+];
+
+function getScoreBonuses(homeOdds: number): { b10: number; b01: number; b20: number; b30: number } {
+  for (const [lo, hi, b10, b01, b20, b30] of DYNAMIC_BONUS_10_MAP) {
+    if (homeOdds >= lo && homeOdds < hi) {
+      return { b10, b01, b20, b30 };
+    }
+  }
+  return { b10: 1, b01: 1, b20: 1, b30: 1 };
+}
+
 export async function predict(
   homeTeam: string,
   awayTeam: string,
   oddsHome: number,
   oddsDraw: number,
   oddsAway: number,
+  winPenaltyFactor = 1,
+  nulBonusFactor = 1,
 ): Promise<PredictionResult> {
   const weights: ModelWeights = await getModelWeights();
   const memory = await getTeamMemory();
+  const regime = await getCurrentRegime();
 
   const invH = 1 / oddsHome;
   const invD = 1 / oddsDraw;
@@ -126,9 +159,12 @@ export async function predict(
   pDOM /= sum;
   pNUL /= sum;
   pEXT /= sum;
-  if (pNUL > 0.3) {
-    const excess = pNUL - 0.3;
-    pNUL = 0.3;
+  const ceilingNUL = regime.name === "DEFENSIVE" ? 0.40
+                   : regime.name === "OFFENSIVE" ? 0.25
+                   : 0.32;
+  if (pNUL > ceilingNUL) {
+    const excess = pNUL - ceilingNUL;
+    pNUL = ceilingNUL;
     pDOM += excess * (pDOM / (pDOM + pEXT));
     pEXT += excess * (pEXT / (pDOM + pEXT));
   }
@@ -146,6 +182,16 @@ export async function predict(
   else if (oddsHome > 2.8 && oddsAway < 2.3) goalAdjustment = 1.1;
   lH *= goalAdjustment;
   lA *= goalAdjustment;
+
+  if (winPenaltyFactor < 1) {
+    pDOM *= winPenaltyFactor;
+    pEXT *= winPenaltyFactor;
+  }
+  pNUL *= nulBonusFactor;
+  const sumAfterPenalty = pDOM + pNUL + pEXT;
+  pDOM /= sumAfterPenalty;
+  pNUL /= sumAfterPenalty;
+  pEXT /= sumAfterPenalty;
 
   let winnerLabel: string;
   let winProb: number;
@@ -171,9 +217,12 @@ export async function predict(
   } else if (pEXT > impliedA * 1.12) {
     valueBetType = "EXT";
     valueBetMarket = "2";
-  } else if (pNUL > impliedD * 1.18) {
-    valueBetType = "NUL";
-    valueBetMarket = "X";
+  } else {
+    const nulThreshold = regime.name === "DEFENSIVE" ? 1.12 : 1.18;
+    if (pNUL > impliedD * nulThreshold) {
+      valueBetType = "NUL";
+      valueBetMarket = "X";
+    }
   }
 
   const winner =
@@ -185,6 +234,15 @@ export async function predict(
       const key = `${i}-${j}`;
       const prior = SCORE_PRIORS[key] ?? 0.15;
       let prob = poisson(i, lH) * poisson(j, lA) * prior;
+      if (i === 0 && j === 0) prob *= getBonus00(oddsDraw);
+      else if (i === 1 && j === 1) prob *= 1.15;
+      const bonuses = getScoreBonuses(oddsHome);
+      if (i === 1 && j === 0) prob *= bonuses.b10;
+      else if (i === 0 && j === 1) prob *= bonuses.b01;
+      else if (i === 2 && j === 0) prob *= bonuses.b20;
+      else if (i === 3 && j === 0) prob *= bonuses.b30;
+      else if (i === 0 && j === 2) prob *= bonuses.b01 * 0.9;
+      else if (i === 0 && j === 3) prob *= bonuses.b30 * 0.5;
       if (i + j >= 6) prob *= 0.5;
       if (i >= 5 || j >= 5) prob *= 0.4;
       candidates.push({ i, j, prob });
