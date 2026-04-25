@@ -241,7 +241,17 @@ export async function updateModelWeights(
       next.antiTrapStrength += lr * 2;
     }
   }
-  if (!winnerCorrect && realWinner === "X") next.drawBias += lr;
+  if (!winnerCorrect && realWinner === "X") {
+    next.drawBias += lr * 4;
+    next.homeAdvantage = Math.max(BOUNDS.homeAdvantage[0], next.homeAdvantage - lr * 0.5);
+  }
+  if (!winnerCorrect && realWinner === "X" && item.winnerLabel !== "X") {
+    next.oddsWeight = Math.max(BOUNDS.oddsWeight[0], next.oddsWeight - lr * 0.3);
+  }
+  if (winnerCorrect && item.confidence > 75) {
+    next.oddsWeight += lr * 0.5;
+    next.homeAdvantage += lr * 0.2;
+  }
   if (scoreCorrect) next.lambdaBoost += lr * 0.5;
 
   await saveModelWeights(next);
@@ -281,6 +291,22 @@ export async function resetWeights(): Promise<void> {
   weightsCache = { ...DEFAULT_WEIGHTS };
 }
 
+export type TeamReliability = "high" | "medium" | "low";
+
+export async function getTeamReliability(): Promise<Record<string, TeamReliability>> {
+  const memory = await getTeamMemory();
+  const result: Record<string, TeamReliability> = {};
+  for (const t of memory) {
+    if (t.total_matches < 5) continue;
+    const trapRate = t.trap_count / Math.max(1, t.total_matches);
+    result[t.team_name] =
+      trapRate > 0.35 ? "low"
+      : trapRate > 0.20 ? "medium"
+      : "high";
+  }
+  return result;
+}
+
 export interface LearningStats {
   totalMatches: number;
   validated: number;
@@ -291,6 +317,14 @@ export interface LearningStats {
   trapTeams: TeamMemoryRow[];
   overperformTeams: TeamMemoryRow[];
   avoidTeams: TeamMemoryRow[];
+  nulPredicted: number;
+  nulReal: number;
+  nulCorrect: number;
+  missedDraws: number;
+  extPredicted: number;
+  domAccuracy: number;
+  extAccuracy: number;
+  nulAccuracy: number;
 }
 
 export async function getLearningStats(): Promise<LearningStats> {
@@ -306,6 +340,14 @@ export async function getLearningStats(): Promise<LearningStats> {
       trapTeams: [],
       overperformTeams: [],
       avoidTeams: [],
+      nulPredicted: 0,
+      nulReal: 0,
+      nulCorrect: 0,
+      missedDraws: 0,
+      extPredicted: 0,
+      domAccuracy: 0,
+      extAccuracy: 0,
+      nulAccuracy: 0,
     };
   }
 
@@ -355,6 +397,25 @@ export async function getLearningStats(): Promise<LearningStats> {
     .filter((m) => m.total_matches >= 3 && m.trap_count / m.total_matches > 0.4)
     .slice(0, 5);
 
+  const domPredicted = validated.filter((h) => h.winner_label === "1");
+  const extPredicted = validated.filter((h) => h.winner_label === "2");
+  const nulPredictedArr = validated.filter((h) => h.winner_label === "X");
+  const nulReal = validated.filter(
+    (h) => (h.real_score_home ?? 0) === (h.real_score_away ?? 0),
+  ).length;
+  const nulCorrect = nulPredictedArr.filter(
+    (h) => (h.real_score_home ?? 0) === (h.real_score_away ?? 0),
+  ).length;
+  const domAccuracy = domPredicted.length
+    ? domPredicted.filter((h) => (h.real_score_home ?? 0) > (h.real_score_away ?? 0)).length /
+      domPredicted.length
+    : 0;
+  const extAccuracy = extPredicted.length
+    ? extPredicted.filter((h) => (h.real_score_away ?? 0) > (h.real_score_home ?? 0)).length /
+      extPredicted.length
+    : 0;
+  const nulAccuracy = nulPredictedArr.length ? nulCorrect / nulPredictedArr.length : 0;
+
   return {
     totalMatches: validated.length,
     validated: validated.length,
@@ -365,6 +426,14 @@ export async function getLearningStats(): Promise<LearningStats> {
     trapTeams,
     overperformTeams,
     avoidTeams,
+    nulPredicted: nulPredictedArr.length,
+    nulReal,
+    nulCorrect,
+    missedDraws: nulReal - nulCorrect,
+    extPredicted: extPredicted.length,
+    domAccuracy,
+    extAccuracy,
+    nulAccuracy,
   };
 }
 

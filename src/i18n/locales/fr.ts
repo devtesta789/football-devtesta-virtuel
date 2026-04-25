@@ -235,5 +235,13 @@ export const fr: Translations = {
       "Plusieurs équipes pièges détectées. Pénalités appliquées automatiquement.",
     recNominal:
       "Système dans la plage nominale. Continuez à enregistrer les résultats.",
+    recNoDraws: "Le modèle ne prédit jamais de nul — vérifiez le drawBias.",
+    recLowDrawAccuracy: "Faible précision sur les nuls — recalibrez le drawBias.",
+    recLowDomAccuracy: "Faible précision DOM (< 50%) — réduisez homeAdvantage.",
+    domAccuracy: "Précision DOM",
+    extAccuracy: "Précision EXT",
+    nulAccuracy: "Précision NUL",
+    nulPredicted: "Nuls prédits",
+    missedDraws: "Nuls manqués",
   },
 };

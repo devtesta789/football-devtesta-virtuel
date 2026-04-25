@@ -252,7 +252,7 @@ export function MultiMatchTab({
             <div className="space-y-2 border-t border-border pt-3">
               {(() => {
                 const safe = results
-                  .filter((r) => r.confidenceTier === "SAFE")
+                  .filter((r) => r.confidenceTier === "SAFE" && !r.hotMatch)
                   .sort((a, b) => b.winProb - a.winProb)
                   .slice(0, 3);
                 if (safe.length === 0) {

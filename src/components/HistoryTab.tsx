@@ -69,7 +69,7 @@ export function HistoryTab() {
   const safePickIds = React.useMemo(() => {
     const byRound = new Map<number, PredictionResult[]>();
     for (const it of items) {
-      if (!it.roundNumber || it.confidenceTier !== "SAFE") continue;
+      if (!it.roundNumber || it.confidenceTier !== "SAFE" || it.hotMatch) continue;
       const arr = byRound.get(it.roundNumber) ?? [];
       arr.push(it);
       byRound.set(it.roundNumber, arr);
