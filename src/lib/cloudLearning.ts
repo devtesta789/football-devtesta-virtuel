@@ -397,6 +397,25 @@ export async function getLearningStats(): Promise<LearningStats> {
     .filter((m) => m.total_matches >= 3 && m.trap_count / m.total_matches > 0.4)
     .slice(0, 5);
 
+  const domPredicted = validated.filter((h) => h.winner_label === "1");
+  const extPredicted = validated.filter((h) => h.winner_label === "2");
+  const nulPredictedArr = validated.filter((h) => h.winner_label === "X");
+  const nulReal = validated.filter(
+    (h) => (h.real_score_home ?? 0) === (h.real_score_away ?? 0),
+  ).length;
+  const nulCorrect = nulPredictedArr.filter(
+    (h) => (h.real_score_home ?? 0) === (h.real_score_away ?? 0),
+  ).length;
+  const domAccuracy = domPredicted.length
+    ? domPredicted.filter((h) => (h.real_score_home ?? 0) > (h.real_score_away ?? 0)).length /
+      domPredicted.length
+    : 0;
+  const extAccuracy = extPredicted.length
+    ? extPredicted.filter((h) => (h.real_score_away ?? 0) > (h.real_score_home ?? 0)).length /
+      extPredicted.length
+    : 0;
+  const nulAccuracy = nulPredictedArr.length ? nulCorrect / nulPredictedArr.length : 0;
+
   return {
     totalMatches: validated.length,
     validated: validated.length,
@@ -407,6 +426,14 @@ export async function getLearningStats(): Promise<LearningStats> {
     trapTeams,
     overperformTeams,
     avoidTeams,
+    nulPredicted: nulPredictedArr.length,
+    nulReal,
+    nulCorrect,
+    missedDraws: nulReal - nulCorrect,
+    extPredicted: extPredicted.length,
+    domAccuracy,
+    extAccuracy,
+    nulAccuracy,
   };
 }
 
