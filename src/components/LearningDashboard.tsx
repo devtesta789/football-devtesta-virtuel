@@ -60,12 +60,21 @@ export function LearningDashboard() {
   }
 
   const recommendations: string[] = [];
+  if (stats.nulPredicted === 0 || stats.missedDraws > 50)
+    recommendations.push(t("ai.recNoDraws"));
+  if (stats.nulAccuracy < 0.4 && stats.nulPredicted > 0)
+    recommendations.push(t("ai.recLowDrawAccuracy"));
+  if (stats.domAccuracy < 0.5 && stats.validated > 10)
+    recommendations.push(t("ai.recLowDomAccuracy"));
   if (stats.totalMatches < 10) recommendations.push(t("ai.recValidateMore"));
   if (stats.recentAccuracy < 0.4 && stats.totalMatches >= 10)
     recommendations.push(t("ai.recLowAccuracy"));
   if (stats.weights.drawBias > 1.05) recommendations.push(t("ai.recDrawBias"));
   if (stats.trapTeams.length > 2) recommendations.push(t("ai.recTrapTeams"));
   if (recommendations.length === 0) recommendations.push(t("ai.recNominal"));
+
+  const domPredictedCount =
+    stats.validated - stats.nulPredicted - stats.extPredicted;
 
   return (
     <div className="space-y-4">
@@ -85,6 +94,29 @@ export function LearningDashboard() {
           label={t("ai.exactScore")}
           value={`${(stats.scoreAccuracy * 100).toFixed(0)}%`}
           accent="cyan"
+        />
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <OutcomeCard
+          label="DOM (1)"
+          predicted={domPredictedCount}
+          accuracy={stats.domAccuracy}
+          accent="cyan"
+        />
+        <OutcomeCard
+          label="NUL (X)"
+          predicted={stats.nulPredicted}
+          accuracy={stats.nulAccuracy}
+          missed={stats.missedDraws}
+          accent="warn"
+          alert={stats.nulPredicted === 0}
+        />
+        <OutcomeCard
+          label="EXT (2)"
+          predicted={stats.extPredicted}
+          accuracy={stats.extAccuracy}
+          accent="lime"
         />
       </div>
 
@@ -148,6 +180,60 @@ export function LearningDashboard() {
           ))}
         </ul>
       </div>
+    </div>
+  );
+}
+
+function OutcomeCard({
+  label,
+  predicted,
+  accuracy,
+  missed,
+  accent,
+  alert = false,
+}: {
+  label: string;
+  predicted: number;
+  accuracy: number;
+  missed?: number;
+  accent: string;
+  alert?: boolean;
+}) {
+  const borderClass = alert
+    ? "border-danger/60"
+    : accent === "cyan"
+      ? "border-cyan/40"
+      : accent === "warn"
+        ? "border-warn/40"
+        : "border-lime/40";
+  const textClass = alert
+    ? "text-danger"
+    : accent === "cyan"
+      ? "text-cyan"
+      : accent === "warn"
+        ? "text-warn"
+        : "text-lime";
+  return (
+    <div className={`border ${borderClass} bg-panel p-3 space-y-1`}>
+      <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </div>
+      <div className={`tabular-nums font-mono text-xl font-bold ${textClass}`}>
+        {predicted > 0 ? `${(accuracy * 100).toFixed(0)}%` : "—"}
+      </div>
+      <div className="font-mono text-[10px] text-muted-foreground">
+        {predicted}
+      </div>
+      {missed !== undefined && missed > 0 && (
+        <div className="font-mono text-[10px] text-danger">
+          ⚠ {missed}
+        </div>
+      )}
+      {alert && predicted === 0 && (
+        <div className="font-mono text-[9px] text-danger uppercase tracking-widest">
+          ⚠
+        </div>
+      )}
     </div>
   );
 }
