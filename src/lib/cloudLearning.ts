@@ -493,6 +493,7 @@ export async function savePrediction(
         htAway: p.htAway,
         htft: p.htft,
         overUnder: p.overUnder,
+        overUnder35: p.overUnder35,
         doubleChance: p.doubleChance,
         totalGoals: p.totalGoals,
         lambdaHome: p.lambdaHome,
@@ -557,6 +558,11 @@ export async function getPredictionHistory(
       htAway: (pd.htAway as number) ?? 0,
       htft: (pd.htft as string) ?? "",
       overUnder: (pd.overUnder as string) ?? "",
+      overUnder35:
+        (pd.overUnder35 as string) ??
+        (((pd.lambdaHome as number) ?? 0) + ((pd.lambdaAway as number) ?? 0) > 3.5
+          ? "Over 3.5"
+          : "Under 3.5"),
       doubleChance: (pd.doubleChance as string) ?? "",
       totalGoals: (pd.totalGoals as number) ?? 0,
       lambdaHome: (pd.lambdaHome as number) ?? 0,
