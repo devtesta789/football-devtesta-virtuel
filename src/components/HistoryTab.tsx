@@ -267,6 +267,14 @@ export function HistoryTab() {
                 <span className="w-full truncate text-xs font-medium text-foreground sm:w-auto sm:text-sm">
                   {r.homeTeam} {t("history.vs")} {r.awayTeam}
                 </span>
+                {r.valueBet && (
+                  <span
+                    title={`Value Bet sur ${r.valueBetMarket}`}
+                    className="border border-cyan/60 bg-cyan/10 px-1 font-mono text-[9px] font-bold uppercase text-cyan"
+                  >
+                    VB
+                  </span>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
                 <span className="tabular-nums font-mono text-xs font-bold text-cyan sm:text-sm">
@@ -282,14 +290,6 @@ export function HistoryTab() {
                     )}
                   >
                     {realScore}
-                  </span>
-                )}
-                {r.valueBet && (
-                  <span
-                    title={`Value Bet sur ${r.valueBetMarket}`}
-                    className="border border-lime bg-lime/10 px-1 font-mono text-[9px] font-bold uppercase text-lime"
-                  >
-                    VB
                   </span>
                 )}
                 <span className="font-mono text-xs text-muted-foreground">
