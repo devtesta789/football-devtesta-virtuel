@@ -392,6 +392,9 @@ export function RoundSyncPanel({
         toast.success(
           t("sync.autoValidated", { count: validated, total: pending.length }),
         );
+        setTimeout(() => {
+          toast(t("sync.checkDashboard"), { icon: "🧠", duration: 5000 });
+        }, 2000);
       } else {
         toast.error(t("sync.noMatchAuto", { played: totalPlayed }), {
           duration: 6000,

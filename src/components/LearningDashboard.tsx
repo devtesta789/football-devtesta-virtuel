@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getLearningStats, resetWeights, type LearningStats } from "@/lib/cloudLearning";
+import {
+  getLearningStats,
+  resetWeights,
+  invalidateCache,
+  type LearningStats,
+} from "@/lib/cloudLearning";
 import toast from "react-hot-toast";
 
 export function LearningDashboard() {
@@ -10,6 +15,7 @@ export function LearningDashboard() {
 
   async function load() {
     setLoading(true);
+    invalidateCache();
     const s = await getLearningStats();
     setStats(s);
     setLoading(false);
@@ -24,14 +30,24 @@ export function LearningDashboard() {
       (tt) => (
         <div className="space-y-2">
           <p className="font-mono text-xs">{t("ai.resetConfirm")}</p>
+          <p className="font-mono text-[10px] text-muted-foreground">
+            {t("ai.resetAdvice")}
+          </p>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={async () => {
                 toast.dismiss(tt.id);
                 await resetWeights();
+                invalidateCache();
                 load();
-                toast.success(t("ai.resetDone"));
+                toast.success(t("ai.resetDone"), { duration: 5000 });
+                setTimeout(() => {
+                  toast(t("ai.resetReminder"), {
+                    icon: "🧠",
+                    duration: 8000,
+                  });
+                }, 1500);
               }}
               className="bg-danger px-3 py-1 font-mono text-[10px] uppercase text-foreground"
             >
@@ -59,18 +75,39 @@ export function LearningDashboard() {
     );
   }
 
+  // Detect if weights are stuck at the limits
+  const drawBiasAtMax = stats.weights.drawBias >= 1.28;
+  const lambdaAtMax = stats.weights.lambdaBoost >= 1.55;
+  const homeAdvAtMin = stats.weights.homeAdvantage <= 0.87;
+  const antiTrapAtMax = stats.weights.antiTrapStrength >= 1.55;
+  const weightsAtLimitCount = [
+    drawBiasAtMax,
+    lambdaAtMax,
+    homeAdvAtMin,
+    antiTrapAtMax,
+  ].filter(Boolean).length;
+  const weightsStuck = weightsAtLimitCount >= 2;
+
   const recommendations: string[] = [];
-  if (stats.nulPredicted === 0 || stats.missedDraws > 50)
+  if (weightsAtLimitCount >= 2)
+    recommendations.push(t("ai.recWeightsStuck"));
+  if (stats.nulPredicted === 0)
     recommendations.push(t("ai.recNoDraws"));
-  if (stats.nulAccuracy < 0.4 && stats.nulPredicted > 0)
+  else if (stats.nulAccuracy < 0.35 && stats.nulPredicted > 0)
     recommendations.push(t("ai.recLowDrawAccuracy"));
-  if (stats.domAccuracy < 0.5 && stats.validated > 10)
+  else if (stats.nulAccuracy >= 0.5)
+    recommendations.push(t("ai.recDrawsGood"));
+  if (lambdaAtMax && weightsAtLimitCount < 2)
+    recommendations.push(t("ai.recLambdaMax"));
+  if (homeAdvAtMin && weightsAtLimitCount < 2)
+    recommendations.push(t("ai.recHomeAdvMin"));
+  if (stats.domAccuracy < 0.5 && stats.validated > 20)
     recommendations.push(t("ai.recLowDomAccuracy"));
-  if (stats.totalMatches < 10) recommendations.push(t("ai.recValidateMore"));
+  if (stats.totalMatches < 10)
+    recommendations.push(t("ai.recValidateMore"));
   if (stats.recentAccuracy < 0.4 && stats.totalMatches >= 10)
     recommendations.push(t("ai.recLowAccuracy"));
-  if (stats.weights.drawBias > 1.05) recommendations.push(t("ai.recDrawBias"));
-  if (stats.trapTeams.length > 2) recommendations.push(t("ai.recTrapTeams"));
+  if (stats.trapTeams.length > 3) recommendations.push(t("ai.recTrapTeams"));
   if (recommendations.length === 0) recommendations.push(t("ai.recNominal"));
 
   const domPredictedCount =
@@ -78,6 +115,39 @@ export function LearningDashboard() {
 
   return (
     <div className="space-y-4">
+      {/* Header with refresh */}
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-cyan">
+          {t("ai.dashboard")}
+        </h2>
+        <button
+          type="button"
+          onClick={load}
+          className="border border-border bg-background px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:border-cyan hover:text-cyan"
+        >
+          ↻ {t("ai.refresh")}
+        </button>
+      </div>
+
+      {/* Weights stuck banner */}
+      {weightsStuck && (
+        <div className="flex items-center justify-between gap-3 border border-danger/60 bg-danger/10 p-3">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-base text-danger">⚠</span>
+            <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-danger">
+              {t("ai.weightsStuck")}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="border border-danger bg-danger/20 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-danger transition-colors hover:bg-danger/30"
+          >
+            {t("ai.resetNow")}
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Metric label={t("ai.validated")} value={String(stats.validated)} accent="cyan" />
         <Metric
@@ -213,6 +283,7 @@ function OutcomeCard({
       : accent === "warn"
         ? "text-warn"
         : "text-lime";
+  const { t } = useTranslation();
   return (
     <div className={`border ${borderClass} bg-panel p-3 space-y-1`}>
       <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -222,16 +293,16 @@ function OutcomeCard({
         {predicted > 0 ? `${(accuracy * 100).toFixed(0)}%` : "—"}
       </div>
       <div className="font-mono text-[10px] text-muted-foreground">
-        {predicted}
+        {predicted} {t("ai.predicted")}
       </div>
       {missed !== undefined && missed > 0 && (
         <div className="font-mono text-[10px] text-danger">
-          ⚠ {missed}
+          ⚠ {missed} {t("ai.missed")}
         </div>
       )}
       {alert && predicted === 0 && (
         <div className="font-mono text-[9px] text-danger uppercase tracking-widest">
-          ⚠
+          ⚠ {t("ai.neverPredicted")}
         </div>
       )}
     </div>

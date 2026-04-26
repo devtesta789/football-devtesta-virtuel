@@ -42,6 +42,17 @@ export function UsageGuide({ open, onClose }: Props) {
           <p className="border border-warn/40 bg-warn/10 p-2 text-warn">
             ⚠ {t("guide.warning")}
           </p>
+
+          <div className="space-y-2 border-t border-border pt-3">
+            <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-cyan">
+              {t("guide.weightsTitle")}
+            </div>
+            <p>{t("guide.weightsWhen")}</p>
+            <p>{t("guide.weightsHow")}</p>
+            <p className="border border-danger/40 bg-danger/10 p-2 text-danger">
+              {t("guide.weightsWarning")}
+            </p>
+          </div>
         </div>
       </div>
     </div>

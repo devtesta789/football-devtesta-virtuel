@@ -22,25 +22,25 @@ export interface TeamMemoryRow {
 }
 
 const DEFAULT_WEIGHTS: ModelWeights = {
-  oddsWeight: 0.6,
-  formWeight: 0.2,
-  historyWeight: 0.2,
-  drawBias: 1.0,
-  homeAdvantage: 1.06,
-  antiTrapStrength: 1.0,
-  lambdaBoost: 1.0,
+  oddsWeight: 0.58,
+  formWeight: 0.21,
+  historyWeight: 0.21,
+  drawBias: 1.05,
+  homeAdvantage: 1.02,
+  antiTrapStrength: 1.10,
+  lambdaBoost: 1.05,
   extBoost: 1.04,
 };
 
 const BOUNDS: Record<keyof ModelWeights, [number, number]> = {
-  oddsWeight: [0.4, 0.7],
-  formWeight: [0.1, 0.35],
-  historyWeight: [0.1, 0.35],
-  drawBias: [0.8, 1.1],
-  homeAdvantage: [0.95, 1.15],
-  antiTrapStrength: [0.85, 1.35],
-  lambdaBoost: [0.8, 1.4],
-  extBoost: [1.0, 1.2],
+  oddsWeight: [0.35, 0.75],
+  formWeight: [0.08, 0.40],
+  historyWeight: [0.08, 0.40],
+  drawBias: [0.75, 1.30],
+  homeAdvantage: [0.85, 1.20],
+  antiTrapStrength: [0.80, 1.60],
+  lambdaBoost: [0.70, 1.60],
+  extBoost: [0.95, 1.25],
 };
 
 function clamp(v: number, [lo, hi]: [number, number]) {
@@ -76,6 +76,12 @@ async function getUserId(): Promise<string | null> {
 export function resetUserCache() {
   userIdCache = null;
   userIdPromise = null;
+  weightsCache = null;
+  memoryCache = null;
+}
+
+// Invalidate weights/memory caches without dropping user identity
+export function invalidateCache() {
   weightsCache = null;
   memoryCache = null;
 }
@@ -394,7 +400,8 @@ export async function getLearningStats(): Promise<LearningStats> {
     .sort((a, b) => b.overperform_count - a.overperform_count)
     .slice(0, 5);
   const avoidTeams = memory
-    .filter((m) => m.total_matches >= 3 && m.trap_count / m.total_matches > 0.4)
+    .filter((m) => m.total_matches >= 5 && m.trap_count / m.total_matches > 0.20)
+    .sort((a, b) => b.trap_count / b.total_matches - a.trap_count / a.total_matches)
     .slice(0, 5);
 
   const domPredicted = validated.filter((h) => h.winner_label === "1");
@@ -486,6 +493,7 @@ export async function savePrediction(
         htAway: p.htAway,
         htft: p.htft,
         overUnder: p.overUnder,
+        overUnder35: p.overUnder35,
         doubleChance: p.doubleChance,
         totalGoals: p.totalGoals,
         lambdaHome: p.lambdaHome,
@@ -550,6 +558,11 @@ export async function getPredictionHistory(
       htAway: (pd.htAway as number) ?? 0,
       htft: (pd.htft as string) ?? "",
       overUnder: (pd.overUnder as string) ?? "",
+      overUnder35:
+        (pd.overUnder35 as string) ??
+        (((pd.lambdaHome as number) ?? 0) + ((pd.lambdaAway as number) ?? 0) > 3.5
+          ? "Over 3.5"
+          : "Under 3.5"),
       doubleChance: (pd.doubleChance as string) ?? "",
       totalGoals: (pd.totalGoals as number) ?? 0,
       lambdaHome: (pd.lambdaHome as number) ?? 0,
