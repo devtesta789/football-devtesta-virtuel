@@ -320,14 +320,6 @@ export function MultiMatchTab({
                       <span className="tabular-nums font-mono text-xs text-lime">
                         @{odds.toFixed(2)}
                       </span>
-                      {r.valueBet && (
-                        <span
-                          title={`Value Bet sur ${r.valueBetMarket}`}
-                          className="border border-lime bg-lime/10 px-1 font-mono text-[9px] font-bold uppercase text-lime"
-                        >
-                          VB
-                        </span>
-                      )}
                       <span className="font-mono text-xs text-muted-foreground">
                         {open ? "▾" : "▸"}
                       </span>
