@@ -36,6 +36,7 @@ export interface PredictionResult {
   htAway: number;
   htft: string;
   overUnder: string;
+  overUnder35: string;
   doubleChance: string;
   totalGoals: number;
   lambdaHome: number;
@@ -199,8 +200,9 @@ export async function predict(
   pNUL /= sumAfterPenalty;
   pEXT /= sumAfterPenalty;
 
-  // Boost de décision NUL : compense la sous-représentation systématique
-  const pNUL_decision = pNUL * 1.30;
+  // Boost NUL conditionnel selon les cotes draw
+  const nulBoostFactor = oddsDraw < 3.0 ? 1.45 : oddsDraw < 4.0 ? 1.20 : 0.90;
+  const pNUL_decision = pNUL * nulBoostFactor;
 
   let winnerLabel: string;
   let winProb: number;
@@ -238,30 +240,41 @@ export async function predict(
     winnerLabel === "1" ? homeTeam : winnerLabel === "2" ? awayTeam : "Match Nul";
 
   const candidates: { i: number; j: number; prob: number }[] = [];
+  const bonuses = getScoreBonuses(oddsHome);
   for (let i = 0; i <= 6; i++) {
     for (let j = 0; j <= 6; j++) {
       const key = `${i}-${j}`;
       const prior = SCORE_PRIORS[key] ?? 0.15;
       let prob = poisson(i, lH) * poisson(j, lA) * prior;
-      if (i === 0 && j === 0) prob *= getBonus00(oddsDraw) * 1.15;
-      else if (i === 1 && j === 1) prob *= 1.15;
-      const bonuses = getScoreBonuses(oddsHome);
-      if (i === 1 && j === 0) prob *= bonuses.b10;
-      else if (i === 0 && j === 1) prob *= bonuses.b01;
-      else if (i === 2 && j === 0) prob *= bonuses.b20;
-      else if (i === 3 && j === 0) prob *= bonuses.b30;
-      else if (i === 0 && j === 2) prob *= bonuses.b01 * 0.9;
-      else if (i === 0 && j === 3) prob *= bonuses.b30 * 0.5;
-      // Bonus pour scores très fréquents en réalité (calibré sur 8 409 matchs)
-      if (i === 1 && j === 1) prob *= 2.20;
-      if (i === 2 && j === 2) prob *= 1.80;
-      if (i === 3 && j === 1) prob *= 1.55;
-      if (i === 1 && j === 3) prob *= 1.20;
-      if (i === 4 && j === 0) prob *= 1.40;
-      // Distinguer 1-1 vs 2-0 selon la cote du draw
-      if (i === 1 && j === 1 && oddsDraw < 3.5) prob *= 2.5;
-      if (i === 2 && j === 0 && oddsDraw > 4.0) prob *= 1.4;
-      // Pénalités assouplies pour gros scores
+
+      // UN SEUL bloc de bonus par score — pas de cumul
+      if (i === 0 && j === 0) {
+        prob *= getBonus00(oddsDraw);
+      } else if (i === 1 && j === 0) {
+        prob *= bonuses.b10;
+      } else if (i === 0 && j === 1) {
+        prob *= bonuses.b01;
+      } else if (i === 2 && j === 0) {
+        prob *= bonuses.b20 * 0.65; // réduit pour contrer la sur-prédiction
+      } else if (i === 3 && j === 0) {
+        prob *= bonuses.b30;
+      } else if (i === 0 && j === 2) {
+        prob *= bonuses.b01 * 0.85;
+      } else if (i === 0 && j === 3) {
+        prob *= bonuses.b30 * 0.5;
+      } else if (i === 1 && j === 1) {
+        prob *= oddsDraw < 3.0 ? 3.20 : oddsDraw < 3.8 ? 2.40 : 1.60;
+      } else if (i === 2 && j === 2) {
+        prob *= 1.80;
+      } else if (i === 3 && j === 1) {
+        prob *= 1.55;
+      } else if (i === 1 && j === 3) {
+        prob *= 1.20;
+      } else if (i === 4 && j === 0) {
+        prob *= 1.10;
+      }
+
+      // Pénalités gros scores
       if (i + j >= 7) prob *= 0.35;
       if (i + j === 6 && i !== 6 && j !== 6) prob *= 0.70;
       if (i >= 6 || j >= 6) prob *= 0.30;
@@ -290,7 +303,8 @@ export async function predict(
   const htft = `${htWinner}/${winnerLabel}`;
   const totalGoals = scoreHome + scoreAway;
   const expectedTotal = lH + lA;
-  const overUnder = expectedTotal > 2.6 ? "Over 2.5" : "Under 2.5";
+  const overUnder = expectedTotal > 2.5 ? "Over 2.5" : "Under 2.5";
+  const overUnder35 = expectedTotal > 3.5 ? "Over 3.5" : "Under 3.5";
   const doubleChance =
     winnerLabel === "1" ? "1X" : winnerLabel === "2" ? "X2" : "1X";
 
@@ -331,6 +345,7 @@ export async function predict(
     htAway,
     htft,
     overUnder,
+    overUnder35,
     doubleChance,
     totalGoals,
     lambdaHome: lH,
