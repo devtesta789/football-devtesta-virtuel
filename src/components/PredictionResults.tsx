@@ -120,10 +120,11 @@ export function PredictionResults({ result }: Props) {
       )}
 
       {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-2 text-center sm:grid-cols-6">
+      <div className="grid grid-cols-3 gap-2 text-center sm:grid-cols-7">
         <Cell label={t("prediction.ht")} value={`${result.htHome}-${result.htAway}`} />
         <Cell label={t("prediction.htft")} value={result.htft} />
         <Cell label={t("prediction.ou")} value={result.overUnder} />
+        <Cell label={t("prediction.ou35")} value={result.overUnder35} />
         <Cell label={t("prediction.dc")} value={result.doubleChance} />
         <Cell label={t("prediction.lambdaH")} value={result.lambdaHome.toFixed(2)} />
         <Cell label={t("prediction.lambdaA")} value={result.lambdaAway.toFixed(2)} />
