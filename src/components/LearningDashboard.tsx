@@ -283,6 +283,7 @@ function OutcomeCard({
       : accent === "warn"
         ? "text-warn"
         : "text-lime";
+  const { t } = useTranslation();
   return (
     <div className={`border ${borderClass} bg-panel p-3 space-y-1`}>
       <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -292,16 +293,16 @@ function OutcomeCard({
         {predicted > 0 ? `${(accuracy * 100).toFixed(0)}%` : "—"}
       </div>
       <div className="font-mono text-[10px] text-muted-foreground">
-        {predicted}
+        {predicted} {t("ai.predicted")}
       </div>
       {missed !== undefined && missed > 0 && (
         <div className="font-mono text-[10px] text-danger">
-          ⚠ {missed}
+          ⚠ {missed} {t("ai.missed")}
         </div>
       )}
       {alert && predicted === 0 && (
         <div className="font-mono text-[9px] text-danger uppercase tracking-widest">
-          ⚠
+          ⚠ {t("ai.neverPredicted")}
         </div>
       )}
     </div>
