@@ -115,6 +115,39 @@ export function LearningDashboard() {
 
   return (
     <div className="space-y-4">
+      {/* Header with refresh */}
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-cyan">
+          {t("ai.dashboard")}
+        </h2>
+        <button
+          type="button"
+          onClick={load}
+          className="border border-border bg-background px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:border-cyan hover:text-cyan"
+        >
+          ↻ {t("ai.refresh")}
+        </button>
+      </div>
+
+      {/* Weights stuck banner */}
+      {weightsStuck && (
+        <div className="flex items-center justify-between gap-3 border border-danger/60 bg-danger/10 p-3">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-base text-danger">⚠</span>
+            <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-danger">
+              {t("ai.weightsStuck")}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="border border-danger bg-danger/20 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-danger transition-colors hover:bg-danger/30"
+          >
+            {t("ai.resetNow")}
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Metric label={t("ai.validated")} value={String(stats.validated)} accent="cyan" />
         <Metric
