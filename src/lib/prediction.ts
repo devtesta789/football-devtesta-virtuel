@@ -456,29 +456,32 @@ export async function predict(
 
   const expectedTotalForHot = lH + lA;
   const hotMatch = expectedTotalForHot > 3.0 && Math.abs(pDOM - pEXT) < 0.15;
-  const isHighOdds = oddsHome > 1.8 && oddsAway > 1.8;
-  const confidenceTier: "SAFE" | "MEDIUM" | "AGGRESSIVE" = hotMatch
-    ? "AGGRESSIVE"
-    : confidence >= 60 && !isHighOdds
-      ? "SAFE"
-      : confidence >= 60 && isHighOdds
-        ? "MEDIUM"
-        : confidence >= 50
-          ? "MEDIUM"
-          : "AGGRESSIVE";
 
+  const confidenceTier: "SAFE" | "MEDIUM" | "AGGRESSIVE" =
+    (winnerLabel === "1" && oddsHome <= 1.5 && confidence >= 55) ||
+    (winnerLabel === "2" && oddsAway <= 1.8 && confidence >= 55)
+      ? "SAFE"
+      : confidence >= 55 && !hotMatch
+        ? "MEDIUM"
+        : "AGGRESSIVE";
+
+  // VB cohérent avec le winner prédit (CRITIQUE)
   if (confidence >= 55 && (confidenceTier === "SAFE" || confidenceTier === "MEDIUM")) {
-    if (pDOM > impliedH * vbThresholdDOM) {
+    if (winnerLabel === "1" && pDOM > impliedH * 1.18) {
       valueBetType = "DOM";
       valueBetMarket = "1";
-    } else if (pEXT > impliedA * vbThresholdEXT) {
+    } else if (winnerLabel === "2" && pEXT > impliedA * 1.18) {
       valueBetType = "EXT";
       valueBetMarket = "2";
-    } else if (pNUL > impliedD * vbThresholdNUL) {
+    } else if (winnerLabel === "X" && pNUL > impliedD * 1.35) {
       valueBetType = "NUL";
       valueBetMarket = "X";
     }
   }
+
+  const isSafeZone =
+    (winnerLabel === "1" && oddsHome <= 1.5 && confidence >= 55) ||
+    (winnerLabel === "2" && oddsAway <= 1.8 && confidence >= 55);
 
   const risky = confidence < 45 || pNUL > 0.28;
 
@@ -520,5 +523,6 @@ export async function predict(
     entropy,
     scoreConfidence,
     timestamp: Date.now(),
+    isSafeZone,
   };
 }
