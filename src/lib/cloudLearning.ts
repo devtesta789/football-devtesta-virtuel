@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { PredictionResult } from "./prediction";
+import { getOrTrainModel, resetModel } from "./supervisedModel";
 
 export interface ModelWeights {
   oddsWeight: number;
@@ -84,6 +85,7 @@ export function resetUserCache() {
 export function invalidateCache() {
   weightsCache = null;
   memoryCache = null;
+  resetModel();
 }
 
 export async function getModelWeights(): Promise<ModelWeights> {
@@ -229,7 +231,7 @@ export async function updateModelWeights(
   const weights = await getModelWeights();
   const next = { ...weights };
   const validatedCount = (await getLearningStats()).validated;
-  const baseLR = 0.025;
+  const baseLR = 0.01;
   const lr = validatedCount < 100 ? baseLR * 1.5 : validatedCount < 300 ? baseLR : baseLR * 0.7;
 
   if (winnerCorrect) {
@@ -285,11 +287,32 @@ export async function updateModelWeights(
 
   memoryCache = null;
   weightsCache = null;
+  resetModel();
+
+  if (typeof window !== "undefined") {
+    if ((window as any).__retrainTimeout) {
+      clearTimeout((window as any).__retrainTimeout);
+    }
+    (window as any).__retrainTimeout = setTimeout(async () => {
+      try {
+        await getOrTrainModel(true);
+      } catch (e) {
+        console.warn("Supervised model retrain skipped:", e);
+      }
+    }, 2000);
+  } else {
+    try {
+      await getOrTrainModel(true);
+    } catch (e) {
+      console.warn("Supervised model retrain skipped:", e);
+    }
+  }
 }
 
 export async function resetWeights(): Promise<void> {
   await saveModelWeights({ ...DEFAULT_WEIGHTS });
   weightsCache = { ...DEFAULT_WEIGHTS };
+  resetModel();
 }
 
 export type TeamReliability = "high" | "medium" | "low";

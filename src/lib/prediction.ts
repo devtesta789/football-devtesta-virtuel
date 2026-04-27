@@ -4,6 +4,7 @@ import {
   getCurrentRegime,
   type ModelWeights,
 } from "./cloudLearning";
+import { getCurrentModel, getOrTrainModel } from "./supervisedModel";
 
 export const TEAMS = [
   "A. Villa",
@@ -189,108 +190,193 @@ export async function predict(
   const memory = await getTeamMemory();
   const regime = await getCurrentRegime();
 
-  const invH = 1 / oddsHome;
-  const invD = 1 / oddsDraw;
-  const invA = 1 / oddsAway;
-  const total = invH + invD + invA;
-  let pDOM = invH / total;
-  let pNUL = invD / total;
-  let pEXT = invA / total;
+  let winnerLabel: string;
+  let pDOM: number;
+  let pNUL: number;
+  let pEXT: number;
+  let winProb = 0;
+  let modelUsed = false;
 
-  pDOM *= weights.homeAdvantage;
-  pNUL *= weights.drawBias;
-  pEXT *= weights.extBoost;
-
-  const homeAdj = getTeamAdjustment(homeTeam, oddsHome < 1.8, memory);
-  const awayAdj = getTeamAdjustment(awayTeam, oddsAway < 1.8, memory);
-  pDOM *= homeAdj.trapFactor * homeAdj.overperformFactor;
-  pEXT *= awayAdj.trapFactor * awayAdj.overperformFactor;
-
-  if (oddsHome >= 1.6 && oddsHome <= 1.8) {
-    const reduction = (weights.antiTrapStrength - 1) * 0.1;
-    pDOM *= 1 - reduction;
-    pNUL *= 1 + reduction * 0.5;
-    pEXT *= 1 + reduction * 0.5;
-  }
-  if (oddsAway >= 1.6 && oddsAway <= 1.8) {
-    const reduction = (weights.antiTrapStrength - 1) * 0.1;
-    pEXT *= 1 - reduction;
-    pNUL *= 1 + reduction * 0.5;
-    pDOM *= 1 + reduction * 0.5;
-  }
-
-  const sum = pDOM + pNUL + pEXT;
-  pDOM /= sum;
-  pNUL /= sum;
-  pEXT /= sum;
-
-  // Zone piège DOM : redistribuer vers NUL proportionnellement à la cote (1.5–2.2)
-  if (oddsHome >= 1.5 && oddsHome <= 2.2) {
-    const trapRisk = (oddsHome - 1.5) / 0.7;
-    const transfer = pDOM * trapRisk * 0.18;
-    pDOM -= transfer;
-    pNUL += transfer * 0.65;
-    pEXT += transfer * 0.35;
-    const s = pDOM + pNUL + pEXT;
-    pDOM /= s;
-    pNUL /= s;
-    pEXT /= s;
-  }
-
-  // Redistribution piège : équipe favorite avec fort trap rate
-  const homeTrapMem = memory.find((t) => t.team_name === homeTeam);
-  const awayTrapMem = memory.find((t) => t.team_name === awayTeam);
-
-  if (homeTrapMem && homeTrapMem.total_matches >= 5) {
-    const homeTrapRate = homeTrapMem.trap_count / homeTrapMem.total_matches;
-    if (oddsHome < 2.0 && homeTrapRate > 0.18) {
-      const transfert = pDOM * homeTrapRate * 0.4;
-      pDOM -= transfert;
-      pNUL += transfert * 0.6;
-      pEXT += transfert * 0.4;
+  const currentModel = getCurrentModel();
+  if (!currentModel) {
+    try {
+      await getOrTrainModel();
+    } catch {
+      // fallback to heuristics when not enough supervised data
     }
   }
 
-  if (awayTrapMem && awayTrapMem.total_matches >= 5) {
-    const awayTrapRate = awayTrapMem.trap_count / awayTrapMem.total_matches;
-    if (oddsAway < 2.0 && awayTrapRate > 0.18) {
-      const transfert = pEXT * awayTrapRate * 0.4;
-      pEXT -= transfert;
-      pNUL += transfert * 0.6;
-      pDOM += transfert * 0.4;
+  const trainedModel = getCurrentModel();
+  if (trainedModel && trainedModel.isTrained()) {
+    modelUsed = true;
+    const pred = trainedModel.predict([oddsHome, oddsDraw, oddsAway]);
+    winnerLabel = pred.label;
+    pDOM = pred.probs["1"] ?? 0.33;
+    pNUL = pred.probs["X"] ?? 0.33;
+    pEXT = pred.probs["2"] ?? 0.33;
+    winProb = pred.probs[winnerLabel] ?? 0.33;
+  } else {
+    const invH = 1 / oddsHome;
+    const invD = 1 / oddsDraw;
+    const invA = 1 / oddsAway;
+    const total = invH + invD + invA;
+    pDOM = invH / total;
+    pNUL = invD / total;
+    pEXT = invA / total;
+
+    pDOM *= weights.homeAdvantage;
+    pNUL *= weights.drawBias;
+    pEXT *= weights.extBoost;
+
+    const homeAdj = getTeamAdjustment(homeTeam, oddsHome < 1.8, memory);
+    const awayAdj = getTeamAdjustment(awayTeam, oddsAway < 1.8, memory);
+    pDOM *= homeAdj.trapFactor * homeAdj.overperformFactor;
+    pEXT *= awayAdj.trapFactor * awayAdj.overperformFactor;
+
+    if (oddsHome >= 1.6 && oddsHome <= 1.8) {
+      const reduction = (weights.antiTrapStrength - 1) * 0.1;
+      pDOM *= 1 - reduction;
+      pNUL *= 1 + reduction * 0.5;
+      pEXT *= 1 + reduction * 0.5;
     }
-  }
+    if (oddsAway >= 1.6 && oddsAway <= 1.8) {
+      const reduction = (weights.antiTrapStrength - 1) * 0.1;
+      pEXT *= 1 - reduction;
+      pNUL *= 1 + reduction * 0.5;
+      pDOM *= 1 + reduction * 0.5;
+    }
 
-  // Re-normalize after trap redistribution
-  {
-    const s2 = pDOM + pNUL + pEXT;
-    pDOM /= s2;
-    pNUL /= s2;
-    pEXT /= s2;
-  }
+    const sum = pDOM + pNUL + pEXT;
+    pDOM /= sum;
+    pNUL /= sum;
+    pEXT /= sum;
 
-  // Détection nul élargie
-  const balancedMatch = Math.abs(oddsHome - oddsAway) < 0.6;
-  const moderateOdds = oddsHome > 1.8 && oddsHome < 4.0 && oddsAway > 1.8 && oddsAway < 4.0;
-  const drawIndicator = oddsDraw < 3.8;
-  const drawOddsStrong = oddsDraw < 3.0;
-  const likelyDraw = (balancedMatch && moderateOdds && drawIndicator) || drawOddsStrong;
+    // Zone piège DOM : redistribuer vers NUL proportionnellement à la cote (1.5–2.2)
+    if (oddsHome >= 1.5 && oddsHome <= 2.2) {
+      const trapRisk = (oddsHome - 1.5) / 0.7;
+      const transfer = pDOM * trapRisk * 0.18;
+      pDOM -= transfer;
+      pNUL += transfer * 0.65;
+      pEXT += transfer * 0.35;
+      const s = pDOM + pNUL + pEXT;
+      pDOM /= s;
+      pNUL /= s;
+      pEXT /= s;
+    }
 
-  if (likelyDraw) {
-    const boostFactor = drawOddsStrong ? 1.35 : 1.2;
-    pNUL *= boostFactor;
-    const scaledSum = pDOM + pNUL + pEXT;
-    pDOM /= scaledSum;
-    pNUL /= scaledSum;
-    pEXT /= scaledSum;
-  }
+    // Redistribution piège : équipe favorite avec fort trap rate
+    const homeTrapMem = memory.find((t) => t.team_name === homeTeam);
+    const awayTrapMem = memory.find((t) => t.team_name === awayTeam);
 
-  const ceilingNUL = regime.name === "DEFENSIVE" ? 0.48 : regime.name === "OFFENSIVE" ? 0.32 : 0.4;
-  if (pNUL > ceilingNUL) {
-    const excess = pNUL - ceilingNUL;
-    pNUL = ceilingNUL;
-    pDOM += excess * (pDOM / (pDOM + pEXT));
-    pEXT += excess * (pEXT / (pDOM + pEXT));
+    if (homeTrapMem && homeTrapMem.total_matches >= 5) {
+      const homeTrapRate = homeTrapMem.trap_count / homeTrapMem.total_matches;
+      if (oddsHome < 2.0 && homeTrapRate > 0.18) {
+        const transfert = pDOM * homeTrapRate * 0.4;
+        pDOM -= transfert;
+        pNUL += transfert * 0.6;
+        pEXT += transfert * 0.4;
+      }
+    }
+
+    if (awayTrapMem && awayTrapMem.total_matches >= 5) {
+      const awayTrapRate = awayTrapMem.trap_count / awayTrapMem.total_matches;
+      if (oddsAway < 2.0 && awayTrapRate > 0.18) {
+        const transfert = pEXT * awayTrapRate * 0.4;
+        pEXT -= transfert;
+        pNUL += transfert * 0.6;
+        pDOM += transfert * 0.4;
+      }
+    }
+
+    // Re-normalize after trap redistribution
+    {
+      const s2 = pDOM + pNUL + pEXT;
+      pDOM /= s2;
+      pNUL /= s2;
+      pEXT /= s2;
+    }
+
+    // Détection nul élargie
+    const balancedMatch = Math.abs(oddsHome - oddsAway) < 0.6;
+    const moderateOdds = oddsHome > 1.8 && oddsHome < 4.0 && oddsAway > 1.8 && oddsAway < 4.0;
+    const drawIndicator = oddsDraw < 3.8;
+    const drawOddsStrong = oddsDraw < 3.0;
+    const likelyDraw = (balancedMatch && moderateOdds && drawIndicator) || drawOddsStrong;
+
+    if (likelyDraw) {
+      const boostFactor = drawOddsStrong ? 1.35 : 1.2;
+      pNUL *= boostFactor;
+      const scaledSum = pDOM + pNUL + pEXT;
+      pDOM /= scaledSum;
+      pNUL /= scaledSum;
+      pEXT /= scaledSum;
+    }
+
+    const ceilingNUL =
+      regime.name === "DEFENSIVE" ? 0.48 : regime.name === "OFFENSIVE" ? 0.32 : 0.4;
+    if (pNUL > ceilingNUL) {
+      const excess = pNUL - ceilingNUL;
+      pNUL = ceilingNUL;
+      pDOM += excess * (pDOM / (pDOM + pEXT));
+      pEXT += excess * (pEXT / (pDOM + pEXT));
+    }
+
+    if (winPenaltyFactor < 1) {
+      pDOM *= winPenaltyFactor;
+      pEXT *= winPenaltyFactor;
+    }
+    pNUL *= nulBonusFactor;
+    const sumAfterPenalty = pDOM + pNUL + pEXT;
+    pDOM /= sumAfterPenalty;
+    pNUL /= sumAfterPenalty;
+    pEXT /= sumAfterPenalty;
+
+    // Boost NUL conditionnel plus agressif
+    const nulBoostFactor =
+      oddsDraw < 2.5
+        ? 1.8
+        : oddsDraw < 3.0
+          ? 1.5
+          : oddsDraw < 3.8
+            ? 1.2
+            : oddsDraw < 5.0
+              ? 0.9
+              : 0.65;
+    const pNUL_decision = pNUL * nulBoostFactor;
+
+    if (pDOM >= pEXT && pDOM >= pNUL_decision) {
+      winnerLabel = "1";
+      winProb = pDOM;
+    } else if (pEXT >= pNUL_decision) {
+      winnerLabel = "2";
+      winProb = pEXT;
+    } else {
+      winnerLabel = "X";
+      winProb = pNUL;
+    }
+
+    // Bloquer EXT quand cotes trop élevées (34% de précision réelle)
+    if (winnerLabel === "2" && oddsAway > 2.2) {
+      const nulBoostLocal = pNUL * 1.4;
+      if (nulBoostLocal > pEXT) {
+        winnerLabel = "X";
+        winProb = pNUL;
+      } else {
+        winnerLabel = "1";
+        winProb = pDOM;
+      }
+    }
+
+    // EXT avec confiance insuffisante → trop risqué
+    if (winnerLabel === "2" && winProb * 100 < 50) {
+      if (pNUL > pDOM) {
+        winnerLabel = "X";
+        winProb = pNUL;
+      } else {
+        winnerLabel = "1";
+        winProb = pDOM;
+      }
+    }
   }
 
   let lH = (1.45 + (1.9 - oddsHome) * 0.35) * weights.lambdaBoost;
@@ -317,53 +403,13 @@ export async function predict(
   pNUL /= sumAfterPenalty;
   pEXT /= sumAfterPenalty;
 
-  // Boost NUL conditionnel plus agressif
-  const nulBoostFactor =
-    oddsDraw < 2.5
-      ? 1.8
-      : oddsDraw < 3.0
-        ? 1.5
-        : oddsDraw < 3.8
-          ? 1.2
-          : oddsDraw < 5.0
-            ? 0.9
-            : 0.65;
-  const pNUL_decision = pNUL * nulBoostFactor;
-
-  let winnerLabel: string;
-  let winProb: number;
-  if (pDOM >= pEXT && pDOM >= pNUL_decision) {
-    winnerLabel = "1";
-    winProb = pDOM;
-  } else if (pEXT >= pNUL_decision) {
-    winnerLabel = "2";
-    winProb = pEXT;
-  } else {
-    winnerLabel = "X";
-    winProb = pNUL;
-  }
-
-  // Bloquer EXT quand cotes trop élevées (34% de précision réelle)
-  if (winnerLabel === "2" && oddsAway > 2.2) {
-    const nulBoostLocal = pNUL * 1.4;
-    if (nulBoostLocal > pEXT) {
-      winnerLabel = "X";
-      winProb = pNUL;
-    } else {
-      winnerLabel = "1";
-      winProb = pDOM;
-    }
-  }
-
-  // EXT avec confiance insuffisante → trop risqué
-  if (winnerLabel === "2" && winProb * 100 < 50) {
-    if (pNUL > pDOM) {
-      winnerLabel = "X";
-      winProb = pNUL;
-    } else {
-      winnerLabel = "1";
-      winProb = pDOM;
-    }
+  if (modelUsed) {
+    const winProbMap: Record<"1" | "X" | "2", number> = {
+      "1": pDOM,
+      X: pNUL,
+      "2": pEXT,
+    };
+    winProb = winProbMap[winnerLabel as "1" | "X" | "2"] ?? 0.33;
   }
 
   const impliedH = 1 / oddsHome;
