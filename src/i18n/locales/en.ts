@@ -73,8 +73,7 @@ export const en = {
     useDiscover: "Use 'Discover'",
     availableCategories: "Available categories",
     matchesPerRound: "matches/round",
-    changeWarning:
-      "⚠ Changing category = new season. Supabase history is preserved.",
+    changeWarning: "⚠ Changing category = new season. Supabase history is preserved.",
     roundLabel: "Round (1-38)",
     sync: "Sync",
     scan: "Scan",
@@ -104,16 +103,14 @@ export const en = {
     failed: "Failed: {{error}}",
     noScores: "Round {{round}}: no scores available yet.",
     noPending: "Round {{round}}: no pending predictions for this round",
-    noMatchPending:
-      "Round {{round}}: no match corresponds to your saved predictions",
+    noMatchPending: "Round {{round}}: no match corresponds to your saved predictions",
     validatedRound: "Round {{round}} ✓ {{count}} validated",
     validatedRoundExtra: "Round {{round}} ✓ {{count}} validated · {{notFound}} unmatched",
     noPlayed: "No round with results",
     autoValidated: "{{count}} prediction(s) auto-validated of {{total}} pending",
     noPendingValid: "No prediction pending validation",
     noScoresAvail: "No scores available · {{count}} prediction(s) pending.",
-    noMatchAuto:
-      "{{played}} played match(es) found but none match your predictions",
+    noMatchAuto: "{{played}} played match(es) found but none match your predictions",
     autoFailed: "Auto-validation failed: {{error}}",
     trainDone:
       "Training complete · {{imported}} matches · {{validated}} validated · {{elapsed}}s · Accuracy {{accuracy}}%",
@@ -138,17 +135,24 @@ export const en = {
   guide: {
     title: "How to use",
     close: "Close",
-    step1: "1. When the season ends (Round 38 complete), change the eventCategoryId in the advanced settings to get the matches of the new season.",
-    step2: "2. Select an upcoming round (one that has not yet been played) and click \"Sync\" to load the fixtures and odds.",
-    step3: "3. Click \"Predict\" to generate AI predictions and see the Top Picks.",
-    step4: "4. After the matches have been played, use \"Auto-validate\" or turn on \"Auto mode\" to automatically validate predictions as results arrive.",
+    step1:
+      "1. When the season ends (Round 38 complete), change the eventCategoryId in the advanced settings to get the matches of the new season.",
+    step2:
+      '2. Select an upcoming round (one that has not yet been played) and click "Sync" to load the fixtures and odds.',
+    step3: '3. Click "Predict" to generate AI predictions and see the Top Picks.',
+    step4:
+      '4. After the matches have been played, use "Auto-validate" or turn on "Auto mode" to automatically validate predictions as results arrive.',
     note: "Matches are updated every 2 minutes. The AI learns from validated results.",
-    warning: "Don't forget to change the eventCategoryId after the season ends or you won't see new matches.",
+    warning:
+      "Don't forget to change the eventCategoryId after the season ends or you won't see new matches.",
     help: "Help",
     weightsTitle: "AI Model Weights Reset",
-    weightsWhen: "› Reset weights if the ⚠ 'Weights stuck' badge appears in the AI dashboard, or if Recent accuracy drops below 40% over several consecutive rounds.",
-    weightsHow: "› After reset, always re-run 🧠 Train on all played rounds to retrain the model from a balanced baseline.",
-    weightsWarning: "⚠ Do not reset mid-season if accuracy is stable — you would lose all accumulated learning.",
+    weightsWhen:
+      "› Reset weights if the ⚠ 'Weights stuck' badge appears in the AI dashboard, or if Recent accuracy drops below 40% over several consecutive rounds.",
+    weightsHow:
+      "› After reset, always re-run 🧠 Train on all played rounds to retrain the model from a balanced baseline.",
+    weightsWarning:
+      "⚠ Do not reset mid-season if accuracy is stable — you would lose all accumulated learning.",
   },
   multi: {
     addMatch: "+ Add match",
