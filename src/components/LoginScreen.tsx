@@ -103,28 +103,18 @@ export function LoginScreen() {
         <div className="mb-4 grid grid-cols-2 border border-border">
           <button
             type="button"
-            onClick={() => {
-              setMode("login");
-              setErrorMsg(null);
-            }}
+            onClick={() => { setMode("login"); setErrorMsg(null); }}
             className={`px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${
-              mode === "login"
-                ? "bg-cyan/10 text-cyan"
-                : "text-muted-foreground hover:text-foreground"
+              mode === "login" ? "bg-cyan/10 text-cyan" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {t("login.tabLogin")}
           </button>
           <button
             type="button"
-            onClick={() => {
-              setMode("signup");
-              setErrorMsg(null);
-            }}
+            onClick={() => { setMode("signup"); setErrorMsg(null); }}
             className={`px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${
-              mode === "signup"
-                ? "bg-cyan/10 text-cyan"
-                : "text-muted-foreground hover:text-foreground"
+              mode === "signup" ? "bg-cyan/10 text-cyan" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {t("login.tabSignup")}

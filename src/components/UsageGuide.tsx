@@ -41,18 +41,6 @@ export function UsageGuide({ open, onClose }: Props) {
 
           <div className="space-y-2 border-t border-border pt-3">
             <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-cyan">
-              🧠 {t("guide.supervisedTitle")}
-            </div>
-            <p>{t("guide.supervisedIntro")}</p>
-            <p>{t("guide.supervisedBenefit")}</p>
-            <p>{t("guide.supervisedHow")}</p>
-            <p className="border border-lime/40 bg-lime/10 p-2 text-lime">
-              💡 {t("guide.supervisedTip")}
-            </p>
-          </div>
-
-          <div className="space-y-2 border-t border-border pt-3">
-            <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-cyan">
               {t("guide.weightsTitle")}
             </div>
             <p>{t("guide.weightsWhen")}</p>

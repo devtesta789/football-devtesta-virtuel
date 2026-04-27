@@ -156,15 +156,6 @@ export const en = {
       "Don't forget to change the eventCategoryId after the season ends or you won't see new matches.",
     help: "Help",
     weightsTitle: "AI Model Weights Reset",
-    supervisedTitle: "Supervised Model",
-    supervisedIntro:
-      "Once at least 10 validated matches are available, the app automatically trains a logistic regression model that learns the direct relationship between odds and the winner.",
-    supervisedBenefit:
-      "When trained, this model replaces the heuristic engine and delivers ultra‑accurate predictions (near 100%) on virtual matches.",
-    supervisedHow:
-      "Training happens in the background after each match validation (with a 2‑second debounce). You can also force training from the AI Dashboard.",
-    supervisedTip:
-      "Tip: Use the 'Train on all played rounds' button in the Sync panel to quickly import and validate an entire season, then let the supervised model learn. It will reach full accuracy.",
     weightsWhen:
       "› Reset weights if the ⚠ 'Weights stuck' badge appears in the AI dashboard, or if Recent accuracy drops below 40% over several consecutive rounds.",
     weightsHow:

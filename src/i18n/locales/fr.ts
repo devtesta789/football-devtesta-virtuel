@@ -159,15 +159,6 @@ export const fr: Translations = {
       "N'oubliez pas de changer l'eventCategoryId après la fin de la saison, sinon vous ne verrez pas les nouveaux matchs.",
     help: "Aide",
     weightsTitle: "Réinitialisation des poids IA",
-    supervisedTitle: "Modèle supervisé",
-    supervisedIntro:
-      "Dès que 10 matchs validés sont disponibles, l'application entraîne automatiquement un modèle de régression logistique qui apprend la relation directe entre les cotes et le vainqueur.",
-    supervisedBenefit:
-      "Une fois entraîné, ce modèle prend le relais du moteur heuristique et fournit des prédictions ultra‑précises (proche de 100 %) sur les matchs virtuels.",
-    supervisedHow:
-      "L'entraînement se fait en arrière‑plan après chaque validation de match (avec un délai de regroupement de 2 secondes). Vous pouvez également forcer l'entraînement depuis le tableau de bord IA.",
-    supervisedTip:
-      "Astuce : utilisez le bouton « Entraîner sur toutes les journées jouées » dans le panneau de synchronisation pour importer et valider rapidement une saison entière, puis laissez le modèle supervisé apprendre. Il atteindra alors sa pleine précision.",
     weightsWhen:
       "› Réinitialisez les poids si le badge ⚠ 'Poids bloqués' apparaît dans le tableau de bord IA, ou si la précision Recent chute sous 40% sur plusieurs rounds consécutifs.",
     weightsHow:

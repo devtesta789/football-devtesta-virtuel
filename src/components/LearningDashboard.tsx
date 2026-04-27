@@ -6,44 +6,24 @@ import {
   invalidateCache,
   type LearningStats,
 } from "@/lib/cloudLearning";
-import { getModelStatus, getOrTrainModel, resetModel } from "@/lib/supervisedModel";
 import toast from "react-hot-toast";
 
 export function LearningDashboard() {
   const { t } = useTranslation();
   const [stats, setStats] = useState<LearningStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [modelStatus, setModelStatus] = useState<{ trained: boolean; examples: number } | null>(
-    null,
-  );
-  const [modelLoading, setModelLoading] = useState(false);
 
   async function load() {
     setLoading(true);
     invalidateCache();
-    const [s, status] = await Promise.all([getLearningStats(), getModelStatus()]);
+    const s = await getLearningStats();
     setStats(s);
-    setModelStatus(status);
     setLoading(false);
   }
 
   useEffect(() => {
     load();
   }, []);
-
-  async function handleTrainModel() {
-    setModelLoading(true);
-    try {
-      await getOrTrainModel(true);
-      toast.success("Modèle supervisé entraîné");
-      invalidateCache();
-      await load();
-    } catch (error) {
-      toast.error("Pas assez de données pour entraîner le modèle");
-    } finally {
-      setModelLoading(false);
-    }
-  }
 
   async function handleReset() {
     toast(
@@ -57,7 +37,6 @@ export function LearningDashboard() {
               onClick={async () => {
                 toast.dismiss(tt.id);
                 await resetWeights();
-                resetModel();
                 invalidateCache();
                 load();
                 toast.success(t("ai.resetDone"), { duration: 5000 });
@@ -124,42 +103,18 @@ export function LearningDashboard() {
 
   return (
     <div className="space-y-4">
-      {/* Header with refresh and supervised model status */}
-      <div className="flex flex-col gap-3 border-b border-border pb-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-2">
-          <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-cyan">
-            {t("ai.dashboard")}
-          </h2>
-          <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono uppercase tracking-widest">
-            <span className="text-muted-foreground">Modèle supervisé :</span>
-            <span className={modelStatus?.trained ? "text-lime" : "text-warn"}>
-              {modelLoading
-                ? "chargement..."
-                : modelStatus
-                  ? modelStatus.trained
-                    ? "entraîné"
-                    : `non entraîné (${modelStatus.examples} exemples)`
-                  : "chargement..."}
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleTrainModel}
-            disabled={modelLoading}
-            className="border border-border bg-background px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:border-cyan hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Entraîner le modèle
-          </button>
-          <button
-            type="button"
-            onClick={load}
-            className="border border-border bg-background px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:border-cyan hover:text-cyan"
-          >
-            ↻ {t("ai.refresh")}
-          </button>
-        </div>
+      {/* Header with refresh */}
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-cyan">
+          {t("ai.dashboard")}
+        </h2>
+        <button
+          type="button"
+          onClick={load}
+          className="border border-border bg-background px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:border-cyan hover:text-cyan"
+        >
+          ↻ {t("ai.refresh")}
+        </button>
       </div>
 
       {/* Weights stuck banner */}
