@@ -33,9 +33,7 @@ export async function getUserConfig(): Promise<UserConfig> {
     .maybeSingle();
 
   if (!data) {
-    await supabase
-      .from("user_config")
-      .insert({ user_id: userId, league_id: DEFAULT.leagueId });
+    await supabase.from("user_config").insert({ user_id: userId, league_id: DEFAULT.leagueId });
     configCache = { ...DEFAULT };
     return configCache;
   }

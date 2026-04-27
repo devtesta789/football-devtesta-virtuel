@@ -88,13 +88,12 @@ export function MultiMatchTab({
     }
     setLoading(true);
     const matchTime = new Date().toISOString();
-    const savedCategoryId =
-      localStorage.getItem("sporty.eventCategoryId") || undefined;
+    const savedCategoryId = localStorage.getItem("sporty.eventCategoryId") || undefined;
 
     const ultraFavCount = matches.filter((m) => {
       const oh = parseFloat(m.oddsHome);
       const oa = parseFloat(m.oddsAway);
-      return (oh && oh <= 1.30) || (oa && oa <= 1.30);
+      return (oh && oh <= 1.3) || (oa && oa <= 1.3);
     }).length;
 
     const out = await Promise.all(
@@ -151,18 +150,14 @@ export function MultiMatchTab({
             </div>
 
             {matches.map((m, i) => {
-              const others = usedTeams.filter(
-                (_, idx) => idx !== i * 2 && idx !== i * 2 + 1,
-              );
+              const others = usedTeams.filter((_, idx) => idx !== i * 2 && idx !== i * 2 + 1);
               return (
                 <div key={i} className="space-y-3 border border-border bg-panel p-3">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-[10px] uppercase tracking-widest text-cyan">
                       {t("prediction.matchHash", { num: String(i + 1).padStart(2, "0") })}
                       {currentRoundNumber && (
-                        <span className="ml-1 text-muted-foreground">
-                          · R{currentRoundNumber}
-                        </span>
+                        <span className="ml-1 text-muted-foreground">· R{currentRoundNumber}</span>
                       )}
                     </span>
                     {matches.length > 1 && (
@@ -275,9 +270,8 @@ export function MultiMatchTab({
                       className="flex items-center justify-between gap-2 border border-border bg-background px-3 py-2"
                     >
                       <span className="font-mono text-xs text-foreground">
-                        <span className="text-cyan">★</span> {r.homeTeam}{" "}
-                        {t("history.vs")} {r.awayTeam} → {r.winner} ({r.scoreHome}
-                        -{r.scoreAway})
+                        <span className="text-cyan">★</span> {r.homeTeam} {t("history.vs")}{" "}
+                        {r.awayTeam} → {r.winner} ({r.scoreHome}-{r.scoreAway})
                       </span>
                       <span className="tabular-nums font-mono text-xs text-lime whitespace-nowrap">
                         @{odds.toFixed(2)} · {r.confidence.toFixed(0)}%
@@ -339,11 +333,7 @@ export function MultiMatchTab({
                         result={r}
                         onValidated={(updated) =>
                           setResults((rs) =>
-                            rs
-                              ? rs.map((x, idx) =>
-                                  idx === i ? { ...x, ...updated } : x,
-                                )
-                              : rs,
+                            rs ? rs.map((x, idx) => (idx === i ? { ...x, ...updated } : x)) : rs,
                           )
                         }
                       />
