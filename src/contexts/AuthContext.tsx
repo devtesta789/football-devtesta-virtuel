@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { resetUserCache } from "@/lib/cloudLearning";
+import { clearUserConfigCache } from "@/lib/userConfig";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -20,7 +21,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       return;
     }
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+        resetUserCache();
+        clearUserConfigCache();
+      }
       setIsAuthenticated(!!session);
     });
     supabase.auth.getSession().then(({ data: { session } }) => {

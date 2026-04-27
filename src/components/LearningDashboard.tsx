@@ -203,9 +203,11 @@ export function LearningDashboard() {
           title={t("ai.trapTeams")}
           subtitle={t("ai.trapSubtitle")}
           emptyLabel={t("ai.none")}
-          items={stats.trapTeams.map(
-            (tt) => `${tt.team_name} · ${tt.trap_count}/${tt.total_matches}`,
-          )}
+          items={stats.trapTeams.map((tt) => {
+            const rate = Math.round((tt.trap_count / Math.max(1, tt.total_matches)) * 100);
+            const badge = rate > 20 ? " 🔴" : " ⚠";
+            return `${tt.team_name} · ${tt.trap_count}/${tt.total_matches} (${rate}%)${badge}`;
+          })}
           accent="warn"
         />
         <TeamList

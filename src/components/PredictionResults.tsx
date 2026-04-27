@@ -27,14 +27,21 @@ export function PredictionResults({ result }: Props) {
     <div className="space-y-4 border border-border bg-panel p-4 animate-in">
       {/* Header tier + confidence */}
       <div className="flex items-center justify-between gap-3">
-        <span
-          className={cn(
-            "border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest",
-            tierBadge,
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={cn(
+              "border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest",
+              tierBadge,
+            )}
+          >
+            {result.confidenceTier} · {result.confidenceStars}★
+          </span>
+          {result.isSafeZone && (
+            <span className="border border-lime bg-lime/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-lime">
+              ✓ ZONE SÛRE
+            </span>
           )}
-        >
-          {result.confidenceTier} · {result.confidenceStars}★
-        </span>
+        </div>
         <div className="text-right">
           <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
             {t("prediction.confidence")}
