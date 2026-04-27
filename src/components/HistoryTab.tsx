@@ -254,7 +254,7 @@ export function HistoryTab() {
                     title={`Value Bet sur ${r.valueBetMarket}`}
                     className="border border-cyan/60 bg-cyan/10 px-1 font-mono text-[9px] font-bold uppercase text-cyan"
                   >
-                    VB
+                    VB={r.valueBetMarket}
                   </span>
                 )}
               </div>
