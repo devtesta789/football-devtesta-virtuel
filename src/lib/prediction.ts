@@ -103,6 +103,7 @@ export interface PredictionResult {
   validated?: boolean;
   roundNumber?: number;
   matchTime?: string;
+  isSafeZone?: boolean;
 }
 
 function poisson(k: number, lambda: number): number {
@@ -118,17 +119,26 @@ function getTeamAdjustment(
   memory: Awaited<ReturnType<typeof getTeamMemory>>,
 ): { trapFactor: number; overperformFactor: number } {
   const m = memory.find((t) => t.team_name === team);
-  if (!m || m.total_matches < 3) return { trapFactor: 1, overperformFactor: 1 };
+  if (!m || m.total_matches < 5) return { trapFactor: 1, overperformFactor: 1 };
+
   const trapRate = m.trap_count / Math.max(1, m.total_matches);
   const overRate = m.overperform_count / Math.max(1, m.total_matches);
+  const underRate = m.underperform_count / Math.max(1, m.total_matches);
+
   let trapFactor = 1;
-  if (isFavorite && trapRate > 0.2) {
-    const penalty = Math.min((trapRate - 0.2) / 0.15, 1) * 0.22;
+  if (isFavorite && trapRate > 0.15) {
+    const penalty = Math.min((trapRate - 0.15) / 0.1, 1) * 0.35;
     trapFactor = 1 - penalty;
   }
+
+  if (isFavorite && underRate > 0.08) {
+    trapFactor *= 1 - underRate * 0.5;
+  }
+
   let overperformFactor = 1;
-  if (overRate > 0.15) overperformFactor = 1 + Math.min(overRate * 0.3, 0.18);
-  return { trapFactor, overperformFactor };
+  if (overRate > 0.12) overperformFactor = 1 + Math.min(overRate * 0.4, 0.25);
+
+  return { trapFactor: Math.max(0.6, trapFactor), overperformFactor };
 }
 
 const DYNAMIC_BONUS_00_MAP: [number, number][] = [
@@ -214,20 +224,68 @@ export async function predict(
   pNUL /= sum;
   pEXT /= sum;
 
-  const balancedMatch = Math.abs(oddsHome - oddsAway) < 0.4;
-  const moderateOdds = oddsHome > 2.0 && oddsHome < 3.5 && oddsAway > 2.0 && oddsAway < 3.5;
-  const drawIndicator = oddsDraw < 3.2;
-  const likelyDraw = balancedMatch && moderateOdds && drawIndicator;
+  // Zone piège DOM : redistribuer vers NUL proportionnellement à la cote (1.5–2.2)
+  if (oddsHome >= 1.5 && oddsHome <= 2.2) {
+    const trapRisk = (oddsHome - 1.5) / 0.7;
+    const transfer = pDOM * trapRisk * 0.18;
+    pDOM -= transfer;
+    pNUL += transfer * 0.65;
+    pEXT += transfer * 0.35;
+    const s = pDOM + pNUL + pEXT;
+    pDOM /= s;
+    pNUL /= s;
+    pEXT /= s;
+  }
+
+  // Redistribution piège : équipe favorite avec fort trap rate
+  const homeTrapMem = memory.find((t) => t.team_name === homeTeam);
+  const awayTrapMem = memory.find((t) => t.team_name === awayTeam);
+
+  if (homeTrapMem && homeTrapMem.total_matches >= 5) {
+    const homeTrapRate = homeTrapMem.trap_count / homeTrapMem.total_matches;
+    if (oddsHome < 2.0 && homeTrapRate > 0.18) {
+      const transfert = pDOM * homeTrapRate * 0.4;
+      pDOM -= transfert;
+      pNUL += transfert * 0.6;
+      pEXT += transfert * 0.4;
+    }
+  }
+
+  if (awayTrapMem && awayTrapMem.total_matches >= 5) {
+    const awayTrapRate = awayTrapMem.trap_count / awayTrapMem.total_matches;
+    if (oddsAway < 2.0 && awayTrapRate > 0.18) {
+      const transfert = pEXT * awayTrapRate * 0.4;
+      pEXT -= transfert;
+      pNUL += transfert * 0.6;
+      pDOM += transfert * 0.4;
+    }
+  }
+
+  // Re-normalize after trap redistribution
+  {
+    const s2 = pDOM + pNUL + pEXT;
+    pDOM /= s2;
+    pNUL /= s2;
+    pEXT /= s2;
+  }
+
+  // Détection nul élargie
+  const balancedMatch = Math.abs(oddsHome - oddsAway) < 0.6;
+  const moderateOdds = oddsHome > 1.8 && oddsHome < 4.0 && oddsAway > 1.8 && oddsAway < 4.0;
+  const drawIndicator = oddsDraw < 3.8;
+  const drawOddsStrong = oddsDraw < 3.0;
+  const likelyDraw = (balancedMatch && moderateOdds && drawIndicator) || drawOddsStrong;
 
   if (likelyDraw) {
-    pNUL *= 1.15;
+    const boostFactor = drawOddsStrong ? 1.35 : 1.2;
+    pNUL *= boostFactor;
     const scaledSum = pDOM + pNUL + pEXT;
     pDOM /= scaledSum;
     pNUL /= scaledSum;
     pEXT /= scaledSum;
   }
 
-  const ceilingNUL = regime.name === "DEFENSIVE" ? 0.42 : regime.name === "OFFENSIVE" ? 0.28 : 0.35;
+  const ceilingNUL = regime.name === "DEFENSIVE" ? 0.48 : regime.name === "OFFENSIVE" ? 0.32 : 0.4;
   if (pNUL > ceilingNUL) {
     const excess = pNUL - ceilingNUL;
     pNUL = ceilingNUL;
@@ -259,8 +317,17 @@ export async function predict(
   pNUL /= sumAfterPenalty;
   pEXT /= sumAfterPenalty;
 
-  // Boost NUL conditionnel selon les cotes draw
-  const nulBoostFactor = oddsDraw < 2.8 ? 1.3 : oddsDraw < 3.5 ? 1.1 : oddsDraw < 5.0 ? 0.95 : 0.75;
+  // Boost NUL conditionnel plus agressif
+  const nulBoostFactor =
+    oddsDraw < 2.5
+      ? 1.8
+      : oddsDraw < 3.0
+        ? 1.5
+        : oddsDraw < 3.8
+          ? 1.2
+          : oddsDraw < 5.0
+            ? 0.9
+            : 0.65;
   const pNUL_decision = pNUL * nulBoostFactor;
 
   let winnerLabel: string;
@@ -274,6 +341,29 @@ export async function predict(
   } else {
     winnerLabel = "X";
     winProb = pNUL;
+  }
+
+  // Bloquer EXT quand cotes trop élevées (34% de précision réelle)
+  if (winnerLabel === "2" && oddsAway > 2.2) {
+    const nulBoostLocal = pNUL * 1.4;
+    if (nulBoostLocal > pEXT) {
+      winnerLabel = "X";
+      winProb = pNUL;
+    } else {
+      winnerLabel = "1";
+      winProb = pDOM;
+    }
+  }
+
+  // EXT avec confiance insuffisante → trop risqué
+  if (winnerLabel === "2" && winProb * 100 < 50) {
+    if (pNUL > pDOM) {
+      winnerLabel = "X";
+      winProb = pNUL;
+    } else {
+      winnerLabel = "1";
+      winProb = pDOM;
+    }
   }
 
   const impliedH = 1 / oddsHome;
