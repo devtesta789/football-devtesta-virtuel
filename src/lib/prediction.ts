@@ -369,9 +369,6 @@ export async function predict(
   const impliedH = 1 / oddsHome;
   const impliedD = 1 / oddsDraw;
   const impliedA = 1 / oddsAway;
-  const vbThresholdDOM = 1.15;
-  const vbThresholdEXT = 1.15;
-  const vbThresholdNUL = 1.22;
   let valueBetType: "DOM" | "EXT" | "NUL" | null = null;
   let valueBetMarket = "";
   const winner = winnerLabel === "1" ? homeTeam : winnerLabel === "2" ? awayTeam : "Match Nul";
