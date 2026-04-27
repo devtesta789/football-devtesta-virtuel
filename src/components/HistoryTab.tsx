@@ -223,6 +223,27 @@ export function HistoryTab() {
                     <span className="hidden sm:inline">★ {t("historyExtra.safePick")}</span>
                   </span>
                 )}
+                {(() => {
+                  const safeZone =
+                    (r.winnerLabel === "1" && r.oddsHome <= 1.5 && r.confidence >= 55) ||
+                    (r.winnerLabel === "2" && r.oddsAway <= 1.8 && r.confidence >= 55);
+                  return safeZone ? (
+                    <span className="border border-lime bg-lime/10 px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-lime sm:px-1.5">
+                      ✓ SÛR
+                    </span>
+                  ) : null;
+                })()}
+                {(() => {
+                  const isTrapAlert =
+                    !r.validated &&
+                    ((r.winnerLabel === "1" && r.oddsHome < 2.0 && r.oddsHome >= 1.5) ||
+                      (r.winnerLabel === "2" && r.oddsAway < 2.0 && r.oddsAway >= 1.5));
+                  return isTrapAlert ? (
+                    <span className="border border-danger bg-danger/10 px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-danger sm:px-1.5">
+                      ⚠ PIÈGE?
+                    </span>
+                  ) : null;
+                })()}
                 {isSafePick && r.validated && (
                   <span
                     className={cn(

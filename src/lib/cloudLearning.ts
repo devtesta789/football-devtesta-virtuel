@@ -22,14 +22,14 @@ export interface TeamMemoryRow {
 }
 
 const DEFAULT_WEIGHTS: ModelWeights = {
-  oddsWeight: 0.55,
+  oddsWeight: 0.5,
   formWeight: 0.22,
-  historyWeight: 0.23,
-  drawBias: 0.95,
-  homeAdvantage: 1.05,
-  antiTrapStrength: 1.15,
-  lambdaBoost: 0.95,
-  extBoost: 1.05,
+  historyWeight: 0.28,
+  drawBias: 1.15,
+  homeAdvantage: 0.95,
+  antiTrapStrength: 1.3,
+  lambdaBoost: 1.0,
+  extBoost: 1.08,
 };
 
 const BOUNDS: Record<keyof ModelWeights, [number, number]> = {
