@@ -1,65 +1,23 @@
-import {
-  getModelWeights,
-  getTeamMemory,
-  getCurrentRegime,
-  type ModelWeights,
-} from "./cloudLearning";
+import { getModelWeights, getTeamMemory, getCurrentRegime, type ModelWeights } from "./cloudLearning";
 
 export const TEAMS = [
-  "A. Villa",
-  "Bournemouth",
-  "Brentford",
-  "Brighton",
-  "Burnley",
-  "C. Palace",
-  "Everton",
-  "Fulham",
-  "Leeds",
-  "Liverpool",
-  "London Blues",
-  "London Reds",
-  "Manchester Blue",
-  "Manchester Red",
-  "N. Forest",
-  "Newcastle",
-  "Spurs",
-  "Sunderland",
-  "West Ham",
-  "Wolverhampton",
+  "A. Villa", "Bournemouth", "Brentford", "Brighton", "Burnley",
+  "C. Palace", "Everton", "Fulham", "Leeds", "Liverpool",
+  "London Blues", "London Reds", "Manchester Blue", "Manchester Red",
+  "N. Forest", "Newcastle", "Spurs", "Sunderland", "West Ham", "Wolverhampton",
 ].sort();
 
 const SCORE_PRIORS: Record<string, number> = {
-  // Draws — rééquilibrés
-  "1-1": 3.2,
-  "0-0": 1.4,
-  "2-2": 2.2,
-  "3-3": 0.15,
-  // Home wins — réduits pour éviter sur-prédiction
-  "1-0": 1.5,
-  "2-0": 1.4,
-  "2-1": 2.5,
-  "3-0": 0.95,
-  "3-1": 1.5,
-  "3-2": 1.2,
-  "4-0": 0.6,
-  "4-1": 0.55,
-  "5-0": 0.3,
-  "4-2": 0.2,
-  "5-1": 0.15,
-  "6-0": 0.1,
-  // Away wins — symétriques
-  "0-1": 2.4,
-  "0-2": 1.3,
-  "1-2": 2.2,
-  "0-3": 0.5,
-  "1-3": 1.0,
-  "2-3": 0.7,
-  "0-4": 0.3,
-  "1-4": 0.4,
-  "0-5": 0.12,
-  "1-5": 0.08,
-  "0-6": 0.08,
-  "2-4": 0.1,
+  // Draws — heavily under-weighted previously
+  "1-1": 2.85, "2-2": 2.60, "0-0": 0.90, "3-3": 0.18,
+  // Home wins
+  "2-1": 2.80, "2-0": 1.80, "1-0": 1.20, "3-1": 1.85, "3-0": 1.20,
+  "4-0": 1.10, "4-1": 0.85, "3-2": 1.40, "5-0": 0.55, "4-2": 0.30,
+  "5-1": 0.28, "6-0": 0.20,
+  // Away wins
+  "1-2": 2.50, "0-1": 2.00, "1-3": 1.20, "0-2": 1.10, "0-3": 0.55,
+  "2-3": 0.80, "1-4": 0.60, "0-4": 0.40, "0-5": 0.18, "1-5": 0.12,
+  "0-6": 0.10, "2-4": 0.12,
 };
 
 export interface PredictionResult {
@@ -132,29 +90,24 @@ function getTeamAdjustment(
 }
 
 const DYNAMIC_BONUS_00_MAP: [number, number][] = [
-  [2.0, 1.85],
-  [2.5, 1.17],
-  [3.0, 0.85],
-  [3.5, 0.6],
-  [5.0, 0.48],
-  [10.0, 0.32],
-  [999, 0.2],
+  [2.0, 1.85], [2.5, 1.17], [3.0, 0.85], [3.5, 0.60],
+  [5.0, 0.48], [10.0, 0.32], [999, 0.20],
 ];
 
 function getBonus00(drawOdds: number): number {
   for (const [mx, bonus] of DYNAMIC_BONUS_00_MAP) {
     if (drawOdds < mx) return bonus;
   }
-  return 0.2;
+  return 0.20;
 }
 
 const DYNAMIC_BONUS_10_MAP: [number, number, number, number, number, number][] = [
-  [1.0, 1.15, 0.55, 0.12, 1.4, 2.2],
-  [1.15, 1.35, 1.0, 0.3, 1.3, 1.6],
-  [1.35, 1.6, 1.4, 0.6, 1.05, 1.0],
-  [1.6, 2.0, 1.25, 0.85, 0.9, 0.75],
-  [2.0, 3.0, 1.05, 1.1, 0.8, 0.45],
-  [3.0, 999, 0.7, 1.3, 0.5, 0.12],
+  [1.00, 1.15, 0.55, 0.12, 1.40, 2.20],
+  [1.15, 1.35, 1.00, 0.30, 1.30, 1.60],
+  [1.35, 1.60, 1.40, 0.60, 1.05, 1.00],
+  [1.60, 2.00, 1.25, 0.85, 0.90, 0.75],
+  [2.00, 3.00, 1.05, 1.10, 0.80, 0.45],
+  [3.00, 999,  0.70, 1.30, 0.50, 0.12],
 ];
 
 function getScoreBonuses(homeOdds: number): { b10: number; b01: number; b20: number; b30: number } {
@@ -213,21 +166,9 @@ export async function predict(
   pDOM /= sum;
   pNUL /= sum;
   pEXT /= sum;
-
-  const balancedMatch = Math.abs(oddsHome - oddsAway) < 0.4;
-  const moderateOdds = oddsHome > 2.0 && oddsHome < 3.5 && oddsAway > 2.0 && oddsAway < 3.5;
-  const drawIndicator = oddsDraw < 3.2;
-  const likelyDraw = balancedMatch && moderateOdds && drawIndicator;
-
-  if (likelyDraw) {
-    pNUL *= 1.15;
-    const scaledSum = pDOM + pNUL + pEXT;
-    pDOM /= scaledSum;
-    pNUL /= scaledSum;
-    pEXT /= scaledSum;
-  }
-
-  const ceilingNUL = regime.name === "DEFENSIVE" ? 0.42 : regime.name === "OFFENSIVE" ? 0.28 : 0.35;
+  const ceilingNUL = regime.name === "DEFENSIVE" ? 0.48
+                   : regime.name === "OFFENSIVE" ? 0.32
+                   : 0.40;
   if (pNUL > ceilingNUL) {
     const excess = pNUL - ceilingNUL;
     pNUL = ceilingNUL;
@@ -260,7 +201,7 @@ export async function predict(
   pEXT /= sumAfterPenalty;
 
   // Boost NUL conditionnel selon les cotes draw
-  const nulBoostFactor = oddsDraw < 2.8 ? 1.3 : oddsDraw < 3.5 ? 1.1 : oddsDraw < 5.0 ? 0.95 : 0.75;
+  const nulBoostFactor = oddsDraw < 3.0 ? 1.45 : oddsDraw < 4.0 ? 1.20 : 0.90;
   const pNUL_decision = pNUL * nulBoostFactor;
 
   let winnerLabel: string;
@@ -276,15 +217,27 @@ export async function predict(
     winProb = pNUL;
   }
 
-  const impliedH = 1 / oddsHome;
-  const impliedD = 1 / oddsDraw;
-  const impliedA = 1 / oddsAway;
-  const vbThresholdDOM = 1.15;
-  const vbThresholdEXT = 1.15;
-  const vbThresholdNUL = 1.22;
+  const impliedH = 1 / oddsHome,
+    impliedD = 1 / oddsDraw,
+    impliedA = 1 / oddsAway;
   let valueBetType: "DOM" | "EXT" | "NUL" | null = null;
   let valueBetMarket = "";
-  const winner = winnerLabel === "1" ? homeTeam : winnerLabel === "2" ? awayTeam : "Match Nul";
+  if (pDOM > impliedH * 1.07) {
+    valueBetType = "DOM";
+    valueBetMarket = "1";
+  } else if (pEXT > impliedA * 1.07) {
+    valueBetType = "EXT";
+    valueBetMarket = "2";
+  } else {
+    const nulThreshold = regime.name === "DEFENSIVE" ? 1.07 : 1.10;
+    if (pNUL > impliedD * nulThreshold) {
+      valueBetType = "NUL";
+      valueBetMarket = "X";
+    }
+  }
+
+  const winner =
+    winnerLabel === "1" ? homeTeam : winnerLabel === "2" ? awayTeam : "Match Nul";
 
   const candidates: { i: number; j: number; prob: number }[] = [];
   const bonuses = getScoreBonuses(oddsHome);
@@ -296,43 +249,35 @@ export async function predict(
 
       // UN SEUL bloc de bonus par score — pas de cumul
       if (i === 0 && j === 0) {
-        const bonus00 = oddsDraw < 2.5 ? 2.2 : oddsDraw < 3.0 ? 1.8 : oddsDraw < 4.0 ? 1.2 : 0.7;
-        prob *= bonus00;
-      } else if (i === 1 && j === 1) {
-        const bonus11 = oddsDraw < 3.0 ? 3.5 : oddsDraw < 3.8 ? 2.8 : 1.8;
-        prob *= bonus11;
-      } else if (i === 2 && j === 2) {
-        prob *= 2.0;
+        prob *= getBonus00(oddsDraw);
       } else if (i === 1 && j === 0) {
-        const bonus10 = oddsHome < 1.4 ? 1.8 : oddsHome < 1.8 ? 1.5 : oddsHome < 2.5 ? 1.2 : 0.9;
-        prob *= bonus10;
+        prob *= bonuses.b10;
       } else if (i === 0 && j === 1) {
-        const bonus01 = oddsAway < 1.4 ? 1.8 : oddsAway < 1.8 ? 1.5 : oddsAway < 2.5 ? 1.2 : 0.9;
-        prob *= bonus01;
+        prob *= bonuses.b01;
       } else if (i === 2 && j === 0) {
-        const bonus20 = oddsHome < 1.3 ? 1.4 : oddsHome < 1.6 ? 1.1 : oddsHome < 2.0 ? 0.85 : 0.6;
-        prob *= bonus20;
-      } else if (i === 0 && j === 2) {
-        const bonus02 = oddsAway < 1.3 ? 1.4 : oddsAway < 1.6 ? 1.1 : oddsAway < 2.0 ? 0.85 : 0.6;
-        prob *= bonus02;
-      } else if (i === 2 && j === 1) {
-        prob *= 2.2;
-      } else if (i === 1 && j === 2) {
-        prob *= 2.0;
+        prob *= bonuses.b20 * 0.65; // réduit pour contrer la sur-prédiction
       } else if (i === 3 && j === 0) {
-        prob *= oddsHome < 1.4 ? 1.3 : 0.8;
+        prob *= bonuses.b30;
+      } else if (i === 0 && j === 2) {
+        prob *= bonuses.b01 * 0.85;
       } else if (i === 0 && j === 3) {
-        prob *= oddsAway < 1.4 ? 1.3 : 0.8;
+        prob *= bonuses.b30 * 0.5;
+      } else if (i === 1 && j === 1) {
+        prob *= oddsDraw < 3.0 ? 3.20 : oddsDraw < 3.8 ? 2.40 : 1.60;
+      } else if (i === 2 && j === 2) {
+        prob *= 1.80;
       } else if (i === 3 && j === 1) {
-        prob *= 1.4;
+        prob *= 1.55;
       } else if (i === 1 && j === 3) {
-        prob *= 1.2;
+        prob *= 1.20;
+      } else if (i === 4 && j === 0) {
+        prob *= 1.10;
       }
 
-      // Pénalités gros scores (inchangées)
+      // Pénalités gros scores
       if (i + j >= 7) prob *= 0.35;
-      if (i + j === 6 && i !== 6 && j !== 6) prob *= 0.7;
-      if (i >= 6 || j >= 6) prob *= 0.3;
+      if (i + j === 6 && i !== 6 && j !== 6) prob *= 0.70;
+      if (i >= 6 || j >= 6) prob *= 0.30;
       candidates.push({ i, j, prob });
     }
   }
@@ -346,7 +291,9 @@ export async function predict(
   const compTotal = compatible.reduce((s, c) => s + c.prob, 0) || 1;
   compatible.forEach((c) => (c.prob /= compTotal));
   compatible.sort((a, b) => b.prob - a.prob);
-  const topScores = compatible.slice(0, 3).map((c) => ({ score: `${c.i}-${c.j}`, prob: c.prob }));
+  const topScores = compatible
+    .slice(0, 3)
+    .map((c) => ({ score: `${c.i}-${c.j}`, prob: c.prob }));
 
   const scoreHome = compatible[0]?.i ?? 1;
   const scoreAway = compatible[0]?.j ?? 0;
@@ -358,7 +305,8 @@ export async function predict(
   const expectedTotal = lH + lA;
   const overUnder = expectedTotal > 2.5 ? "Over 2.5" : "Under 2.5";
   const overUnder35 = expectedTotal > 3.5 ? "Over 3.5" : "Under 3.5";
-  const doubleChance = winnerLabel === "1" ? "1X" : winnerLabel === "2" ? "X2" : "1X";
+  const doubleChance =
+    winnerLabel === "1" ? "1X" : winnerLabel === "2" ? "X2" : "1X";
 
   const confidence = winProb * 100;
   const confidenceStars =
@@ -367,32 +315,19 @@ export async function predict(
   const expectedTotalForHot = lH + lA;
   const hotMatch = expectedTotalForHot > 3.0 && Math.abs(pDOM - pEXT) < 0.15;
   const isHighOdds = oddsHome > 1.8 && oddsAway > 1.8;
-  const confidenceTier: "SAFE" | "MEDIUM" | "AGGRESSIVE" = hotMatch
-    ? "AGGRESSIVE"
-    : confidence >= 60 && !isHighOdds
-      ? "SAFE"
-      : confidence >= 60 && isHighOdds
-        ? "MEDIUM"
-        : confidence >= 50
-          ? "MEDIUM"
-          : "AGGRESSIVE";
-
-  if (confidence >= 55 && (confidenceTier === "SAFE" || confidenceTier === "MEDIUM")) {
-    if (pDOM > impliedH * vbThresholdDOM) {
-      valueBetType = "DOM";
-      valueBetMarket = "1";
-    } else if (pEXT > impliedA * vbThresholdEXT) {
-      valueBetType = "EXT";
-      valueBetMarket = "2";
-    } else if (pNUL > impliedD * vbThresholdNUL) {
-      valueBetType = "NUL";
-      valueBetMarket = "X";
-    }
-  }
+  const confidenceTier: "SAFE" | "MEDIUM" | "AGGRESSIVE" =
+    hotMatch ? "AGGRESSIVE"
+    : confidence >= 60 && !isHighOdds ? "SAFE"
+    : confidence >= 60 && isHighOdds ? "MEDIUM"
+    : confidence >= 50 ? "MEDIUM"
+    : "AGGRESSIVE";
 
   const risky = confidence < 45 || pNUL > 0.28;
 
-  const entropy = -topScores.reduce((s, c) => s + (c.prob > 0 ? c.prob * Math.log2(c.prob) : 0), 0);
+  const entropy = -topScores.reduce(
+    (s, c) => s + (c.prob > 0 ? c.prob * Math.log2(c.prob) : 0),
+    0,
+  );
   const scoreConfidence = topScores[0]?.prob ?? 0;
 
   return {

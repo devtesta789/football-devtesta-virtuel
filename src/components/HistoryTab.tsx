@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getPredictionHistory, getDistinctCategories } from "@/lib/cloudLearning";
+import {
+  getPredictionHistory,
+  getDistinctCategories,
+} from "@/lib/cloudLearning";
 import type { PredictionResult } from "@/lib/prediction";
 import { cn } from "@/lib/utils";
 
@@ -11,7 +14,9 @@ export function HistoryTab() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filterRound, setFilterRound] = useState("");
   const [filterTeam, setFilterTeam] = useState("");
-  const [filterResult, setFilterResult] = useState<"all" | "correct" | "incorrect">("all");
+  const [filterResult, setFilterResult] = useState<
+    "all" | "correct" | "incorrect"
+  >("all");
   const [categories, setCategories] = useState<string[]>([]);
   const [filterCategory, setFilterCategory] = useState<string>("auto");
 
@@ -56,9 +61,9 @@ export function HistoryTab() {
     return true;
   });
 
-  const rounds = [...new Set(items.map((i) => i.roundNumber).filter(Boolean) as number[])].sort(
-    (a, b) => b - a,
-  );
+  const rounds = [
+    ...new Set(items.map((i) => i.roundNumber).filter(Boolean) as number[]),
+  ].sort((a, b) => b - a);
 
   // Compute Top 3 SAFE picks per round (by winProb desc) so we can flag them in the list.
   const safePickIds = React.useMemo(() => {
@@ -93,7 +98,9 @@ export function HistoryTab() {
   if (!items.length) {
     return (
       <div className="border border-border bg-panel p-8 text-center">
-        <p className="font-mono text-sm text-muted-foreground">{t("history.empty")}</p>
+        <p className="font-mono text-sm text-muted-foreground">
+          {t("history.empty")}
+        </p>
       </div>
     );
   }
@@ -152,7 +159,9 @@ export function HistoryTab() {
           </label>
           <select
             value={filterResult}
-            onChange={(e) => setFilterResult(e.target.value as typeof filterResult)}
+            onChange={(e) =>
+              setFilterResult(e.target.value as typeof filterResult)
+            }
             className="border border-border bg-background px-3 py-1.5 font-mono text-sm"
           >
             <option value="all">{t("history.all")}</option>
@@ -183,9 +192,13 @@ export function HistoryTab() {
         const open = expanded === id;
         const date = new Date(r.timestamp);
         const matchDate = r.matchTime ? new Date(r.matchTime) : null;
-        const realScore = r.validated ? `${r.realScoreHome}-${r.realScoreAway}` : null;
+        const realScore = r.validated
+          ? `${r.realScoreHome}-${r.realScoreAway}`
+          : null;
         const realWinner =
-          r.validated && r.realScoreHome !== undefined && r.realScoreAway !== undefined
+          r.validated &&
+          r.realScoreHome !== undefined &&
+          r.realScoreAway !== undefined
             ? r.realScoreHome > r.realScoreAway
               ? "1"
               : r.realScoreAway > r.realScoreHome
@@ -198,7 +211,10 @@ export function HistoryTab() {
         return (
           <div
             key={id}
-            className={cn("border bg-panel", isSafePick ? "border-cyan/60" : "border-border")}
+            className={cn(
+              "border bg-panel",
+              isSafePick ? "border-cyan/60" : "border-border",
+            )}
           >
             <button
               type="button"
@@ -234,7 +250,9 @@ export function HistoryTab() {
                   >
                     <span className="sm:hidden">{winnerCorrect ? "✓" : "✗"}</span>
                     <span className="hidden sm:inline">
-                      {winnerCorrect ? t("historyExtra.pickHit") : t("historyExtra.pickMiss")}
+                      {winnerCorrect
+                        ? t("historyExtra.pickHit")
+                        : t("historyExtra.pickMiss")}
                     </span>
                   </span>
                 )}
@@ -266,13 +284,17 @@ export function HistoryTab() {
                   <span
                     className={cn(
                       "tabular-nums border px-1.5 py-0.5 font-mono text-[10px] sm:px-2",
-                      winnerCorrect ? "border-lime text-lime" : "border-danger text-danger",
+                      winnerCorrect
+                        ? "border-lime text-lime"
+                        : "border-danger text-danger",
                     )}
                   >
                     {realScore}
                   </span>
                 )}
-                <span className="font-mono text-xs text-muted-foreground">{open ? "▾" : "▸"}</span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {open ? "▾" : "▸"}
+                </span>
               </div>
             </button>
             {open && (
@@ -282,7 +304,9 @@ export function HistoryTab() {
                     <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
                       {t("history.predictedWinner")}
                     </div>
-                    <div className="text-xs font-bold text-foreground">{r.winner}</div>
+                    <div className="text-xs font-bold text-foreground">
+                      {r.winner}
+                    </div>
                   </div>
                   <div className="border border-border bg-background p-2">
                     <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">

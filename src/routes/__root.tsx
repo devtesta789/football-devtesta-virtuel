@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Outlet, createRootRoute, HeadContent, Scripts, Link } from "@tanstack/react-router";
+import {
+  Outlet,
+  createRootRoute,
+  HeadContent,
+  Scripts,
+  Link,
+} from "@tanstack/react-router";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -142,31 +148,11 @@ export const Route = createRootRoute({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:title", content: "English Predict Pro — AI Football Predictions" },
-      {
-        name: "description",
-        content:
-          "Adaptive football combiné prediction engine. 1-10 matchs, hybrid Poisson + empirical priors, learning AI.",
-      },
-      {
-        property: "og:description",
-        content:
-          "Adaptive football combiné prediction engine. 1-10 matchs, hybrid Poisson + empirical priors, learning AI.",
-      },
-      {
-        name: "twitter:description",
-        content:
-          "Adaptive football combiné prediction engine. 1-10 matchs, hybrid Poisson + empirical priors, learning AI.",
-      },
-      {
-        property: "og:image",
-        content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/759aa5e4-7f6b-4854-8757-6b0eb44741ff",
-      },
-      {
-        name: "twitter:image",
-        content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/759aa5e4-7f6b-4854-8757-6b0eb44741ff",
-      },
+      { name: "description", content: "Adaptive football combiné prediction engine. 1-10 matchs, hybrid Poisson + empirical priors, learning AI." },
+      { property: "og:description", content: "Adaptive football combiné prediction engine. 1-10 matchs, hybrid Poisson + empirical priors, learning AI." },
+      { name: "twitter:description", content: "Adaptive football combiné prediction engine. 1-10 matchs, hybrid Poisson + empirical priors, learning AI." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/759aa5e4-7f6b-4854-8757-6b0eb44741ff" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/759aa5e4-7f6b-4854-8757-6b0eb44741ff" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [

@@ -69,7 +69,8 @@ interface ApiPlayoutMatch {
 function teamName(v: unknown): string {
   if (!v) return "";
   if (typeof v === "string") return v;
-  if (typeof v === "object" && v && "name" in v) return String((v as { name: unknown }).name ?? "");
+  if (typeof v === "object" && v && "name" in v)
+    return String((v as { name: unknown }).name ?? "");
   return "";
 }
 
@@ -160,7 +161,9 @@ export function getCachedScoreCount(): number {
  * predictions in Supabase). Useful to fill partial rounds whose scores
  * have already been observed once but are no longer exposed by the API.
  */
-export function seedScoreCache(scores: Record<string, { home: number; away: number }>): number {
+export function seedScoreCache(
+  scores: Record<string, { home: number; away: number }>,
+): number {
   const c = loadScoreCache();
   let added = 0;
   for (const [key, v] of Object.entries(scores)) {
@@ -303,7 +306,9 @@ export async function discoverAllCategories(
   leagueId: string,
 ): Promise<{ id: string; roundCount: number }[]> {
   const env = await callProxy({ action: "discoverAll", leagueId });
-  const data = env.data as { categories?: { id: string; roundCount: number }[] } | undefined;
+  const data = env.data as
+    | { categories?: { id: string; roundCount: number }[] }
+    | undefined;
   return data?.categories ?? [];
 }
 
@@ -372,7 +377,9 @@ export async function fetchAllPlayedMatches(
   const out: { round: number; matches: SportyMatch[] }[] = [];
   const rounds = Array.from({ length: maxRound }, (_, i) => i + 1);
 
-  const fetchOne = async (r: number): Promise<{ round: number; matches: SportyMatch[] } | null> => {
+  const fetchOne = async (
+    r: number,
+  ): Promise<{ round: number; matches: SportyMatch[] } | null> => {
     try {
       // useCache=false during scans
       const { matches } = await fetchRound(leagueId, String(r), eventCategoryId, false);
@@ -391,7 +398,11 @@ export async function fetchAllPlayedMatches(
 
   for (const chunk of chunks) {
     const results = await Promise.all(chunk.map(fetchOne));
-    out.push(...results.filter((r): r is { round: number; matches: SportyMatch[] } => r !== null));
+    out.push(
+      ...results.filter(
+        (r): r is { round: number; matches: SportyMatch[] } => r !== null,
+      ),
+    );
   }
 
   return out.sort((a, b) => a.round - b.round);

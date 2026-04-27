@@ -23,7 +23,8 @@ export function LoginScreen() {
     return () => clearInterval(id);
   }, [lockUntil]);
 
-  const remainingLock = lockUntil && lockUntil > now ? Math.ceil((lockUntil - now) / 1000) : 0;
+  const remainingLock =
+    lockUntil && lockUntil > now ? Math.ceil((lockUntil - now) / 1000) : 0;
   const isLocked = remainingLock > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,7 +80,9 @@ export function LoginScreen() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t("login.enterKey")}
                 className={`w-full border bg-background px-3 py-2 pr-14 font-mono text-sm text-foreground transition-colors focus:outline-none ${
-                  errorMsg ? "border-danger focus:border-danger" : "border-border focus:border-cyan"
+                  errorMsg
+                    ? "border-danger focus:border-danger"
+                    : "border-border focus:border-cyan"
                 }`}
                 autoFocus
                 disabled={isLoading || isLocked}

@@ -75,7 +75,8 @@ export const fr: Translations = {
     useDiscover: "Utiliser 'Découvrir'",
     availableCategories: "Catégories disponibles",
     matchesPerRound: "matchs/round",
-    changeWarning: "⚠ Changer de catégorie = nouvelle saison. L'historique Supabase est préservé.",
+    changeWarning:
+      "⚠ Changer de catégorie = nouvelle saison. L'historique Supabase est préservé.",
     roundLabel: "Round (1-38)",
     sync: "Sync",
     scan: "Scan",
@@ -104,16 +105,21 @@ export const fr: Translations = {
     scanFailed: "Scan échoué : {{error}}",
     failed: "Échec : {{error}}",
     noScores: "Round {{round}} : aucun score disponible pour le moment.",
-    noPending: "Round {{round}} : aucune prédiction sauvegardée pour ce round",
-    noMatchPending: "Round {{round}} : aucun match ne correspond à vos prédictions sauvegardées",
+    noPending:
+      "Round {{round}} : aucune prédiction sauvegardée pour ce round",
+    noMatchPending:
+      "Round {{round}} : aucun match ne correspond à vos prédictions sauvegardées",
     validatedRound: "Round {{round}} ✓ {{count}} validée(s)",
     validatedRoundExtra:
       "Round {{round}} ✓ {{count}} validée(s) · {{notFound}} sans correspondance",
     noPlayed: "Aucun round avec résultats",
-    autoValidated: "{{count}} prédiction(s) auto-validée(s) sur {{total}} en attente",
+    autoValidated:
+      "{{count}} prédiction(s) auto-validée(s) sur {{total}} en attente",
     noPendingValid: "Aucune prédiction en attente de validation",
-    noScoresAvail: "Aucun score disponible · {{count}} prédiction(s) en attente.",
-    noMatchAuto: "{{played}} match(s) joué(s) trouvé(s) mais aucun ne correspond à vos prédictions",
+    noScoresAvail:
+      "Aucun score disponible · {{count}} prédiction(s) en attente.",
+    noMatchAuto:
+      "{{played}} match(s) joué(s) trouvé(s) mais aucun ne correspond à vos prédictions",
     autoFailed: "Auto-validation échouée : {{error}}",
     trainDone:
       "Entraînement terminé · {{imported}} matchs · {{validated}} validés · {{elapsed}}s · Accuracy {{accuracy}}%",
@@ -125,7 +131,8 @@ export const fr: Translations = {
     categoriesFound_one: "{{count}} catégorie trouvée",
     categoriesFound_other: "{{count}} catégories trouvées",
     categorySet: "Catégorie : {{id}}",
-    statusOk: "Round {{round}} → {{count}} matchs · {{withOdds}} avec cotes",
+    statusOk:
+      "Round {{round}} → {{count}} matchs · {{withOdds}} avec cotes",
     alreadyPlayed: " · {{count}} déjà joué(s)",
     unmatched: " · {{count}} équipe(s) non reconnue(s)",
     rescanPartial: "Re-scan rounds partiels",
@@ -138,24 +145,17 @@ export const fr: Translations = {
   guide: {
     title: "Guide d'utilisation",
     close: "Fermer",
-    step1:
-      "1. Quand la saison est terminée (Journée 38 complète), changez l'eventCategoryId dans les paramètres avancés pour obtenir les matchs de la nouvelle saison.",
-    step2:
-      '2. Sélectionnez une journée à venir (pas encore jouée) et cliquez sur "Sync" pour charger les matchs et les cotes.',
-    step3: '3. Cliquez sur "Predict" pour générer les prédictions de l\'IA et voir les Top Picks.',
-    step4:
-      '4. Une fois les matchs joués, utilisez "Auto-validate" ou activez le "Mode auto" pour valider automatiquement les prédictions à mesure que les résultats arrivent.',
+    step1: "1. Quand la saison est terminée (Journée 38 complète), changez l'eventCategoryId dans les paramètres avancés pour obtenir les matchs de la nouvelle saison.",
+    step2: "2. Sélectionnez une journée à venir (pas encore jouée) et cliquez sur \"Sync\" pour charger les matchs et les cotes.",
+    step3: "3. Cliquez sur \"Predict\" pour générer les prédictions de l'IA et voir les Top Picks.",
+    step4: "4. Une fois les matchs joués, utilisez \"Auto-validate\" ou activez le \"Mode auto\" pour valider automatiquement les prédictions à mesure que les résultats arrivent.",
     note: "Les matchs sont mis à jour toutes les 2 minutes. L'IA apprend des résultats validés.",
-    warning:
-      "N'oubliez pas de changer l'eventCategoryId après la fin de la saison, sinon vous ne verrez pas les nouveaux matchs.",
+    warning: "N'oubliez pas de changer l'eventCategoryId après la fin de la saison, sinon vous ne verrez pas les nouveaux matchs.",
     help: "Aide",
     weightsTitle: "Réinitialisation des poids IA",
-    weightsWhen:
-      "› Réinitialisez les poids si le badge ⚠ 'Poids bloqués' apparaît dans le tableau de bord IA, ou si la précision Recent chute sous 40% sur plusieurs rounds consécutifs.",
-    weightsHow:
-      "› Après le reset, relancez toujours 🧠 Train sur tous les rounds joués pour réentraîner le modèle depuis une base équilibrée.",
-    weightsWarning:
-      "⚠ Ne réinitialisez pas en cours de saison si la précision est stable — vous perdriez tout l'apprentissage accumulé.",
+    weightsWhen: "› Réinitialisez les poids si le badge ⚠ 'Poids bloqués' apparaît dans le tableau de bord IA, ou si la précision Recent chute sous 40% sur plusieurs rounds consécutifs.",
+    weightsHow: "› Après le reset, relancez toujours 🧠 Train sur tous les rounds joués pour réentraîner le modèle depuis une base équilibrée.",
+    weightsWarning: "⚠ Ne réinitialisez pas en cours de saison si la précision est stable — vous perdriez tout l'apprentissage accumulé.",
   },
   multi: {
     addMatch: "+ Ajouter match",
@@ -202,7 +202,8 @@ export const fr: Translations = {
     generated_one: "{{count}} prédiction générée",
     generated_other: "{{count}} prédictions générées",
     topPicks: "Top Picks (SÛRS)",
-    noSafePicks: "Aucun pick SÛR dans ce combiné. Lancez plus de prédictions pour en débloquer.",
+    noSafePicks:
+      "Aucun pick SÛR dans ce combiné. Lancez plus de prédictions pour en débloquer.",
   },
   historyExtra: {
     safePick: "IA SÛR",
@@ -236,11 +237,16 @@ export const fr: Translations = {
     avoidSubtitle: "Taux de piège élevé",
     none: "— aucun —",
     recommendations: "Recommandations IA",
-    recValidateMore: "Validez plus de matchs — l'IA a besoin de ≥10 résultats pour se calibrer.",
-    recLowAccuracy: "Précision récente faible — le modèle régresse vers les défauts.",
-    recDrawBias: "Biais des nuls élevé. Attention à la surprédiction des nuls.",
-    recTrapTeams: "Plusieurs équipes pièges détectées. Pénalités appliquées automatiquement.",
-    recNominal: "Système dans la plage nominale. Continuez à enregistrer les résultats.",
+    recValidateMore:
+      "Validez plus de matchs — l'IA a besoin de ≥10 résultats pour se calibrer.",
+    recLowAccuracy:
+      "Précision récente faible — le modèle régresse vers les défauts.",
+    recDrawBias:
+      "Biais des nuls élevé. Attention à la surprédiction des nuls.",
+    recTrapTeams:
+      "Plusieurs équipes pièges détectées. Pénalités appliquées automatiquement.",
+    recNominal:
+      "Système dans la plage nominale. Continuez à enregistrer les résultats.",
     recNoDraws: "Le modèle ne prédit jamais de nul — vérifiez le drawBias.",
     recLowDrawAccuracy: "Faible précision sur les nuls — recalibrez le drawBias.",
     recLowDomAccuracy: "Faible précision DOM (< 50%) — réduisez homeAdvantage.",

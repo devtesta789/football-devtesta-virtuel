@@ -12,9 +12,9 @@ interface TeamSelectProps {
 }
 
 function ReliabilityDot({ r }: { r: TeamReliability | undefined }) {
-  if (!r)
-    return <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-muted-foreground/30" />;
-  const color = r === "high" ? "bg-lime" : r === "medium" ? "bg-warn" : "bg-danger";
+  if (!r) return <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-muted-foreground/30" />;
+  const color =
+    r === "high" ? "bg-lime" : r === "medium" ? "bg-warn" : "bg-danger";
   return <span className={cn("inline-block h-2 w-2 shrink-0 rounded-full", color)} />;
 }
 
@@ -45,7 +45,9 @@ export function TeamSelect({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const filteredTeams = TEAMS.filter((t) => t.toLowerCase().includes(search.toLowerCase()));
+  const filteredTeams = TEAMS.filter((t) =>
+    t.toLowerCase().includes(search.toLowerCase()),
+  );
 
   const selectedRel = value ? reliability[value] : undefined;
 
@@ -76,7 +78,9 @@ export function TeamSelect({
             <span className="text-muted-foreground">— Select team —</span>
           )}
         </span>
-        <span className="font-mono text-[10px] text-muted-foreground">{open ? "▾" : "▸"}</span>
+        <span className="font-mono text-[10px] text-muted-foreground">
+          {open ? "▾" : "▸"}
+        </span>
       </button>
 
       {open && (
@@ -129,7 +133,9 @@ export function TeamSelect({
               >
                 <ReliabilityDot r={rel} />
                 <span className="truncate">{t}</span>
-                {disabled && <span className="ml-auto font-mono text-[10px] text-danger">✕</span>}
+                {disabled && (
+                  <span className="ml-auto font-mono text-[10px] text-danger">✕</span>
+                )}
               </button>
             );
           })}

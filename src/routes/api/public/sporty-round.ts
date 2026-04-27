@@ -6,7 +6,8 @@ const UPSTREAM_HEADERS = {
   Accept: "application/json",
   Origin: "https://bet261.mg",
   Referer: "https://bet261.mg/",
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 };
 
 function buildHeaders(): Record<string, string> {
@@ -44,10 +45,11 @@ async function discoverCategoryId(leagueId: string): Promise<string | null> {
     for (let i = 0; i < BATCH && start - i >= SCAN_FROM; i++) ids.push(start - i);
     const results = await Promise.all(
       ids.map(async (cat) => {
-        const data = (await fetchJson(`${BASE}/round/1?eventCategoryId=${cat}&getNext=false`)) as {
-          round?: { matches?: { entryPointId?: number | string }[] };
-        } | null;
-        return data?.round?.matches?.[0] && String(data.round.matches[0].entryPointId) === leagueId
+        const data = (await fetchJson(
+          `${BASE}/round/1?eventCategoryId=${cat}&getNext=false`,
+        )) as { round?: { matches?: { entryPointId?: number | string }[] } } | null;
+        return data?.round?.matches?.[0] &&
+          String(data.round.matches[0].entryPointId) === leagueId
           ? cat
           : null;
       }),
@@ -72,7 +74,8 @@ const corsHeaders = {
 export const Route = createFileRoute("/api/public/sporty-round")({
   server: {
     handlers: {
-      OPTIONS: async () => new Response(null, { status: 204, headers: corsHeaders }),
+      OPTIONS: async () =>
+        new Response(null, { status: 204, headers: corsHeaders }),
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const action = url.searchParams.get("action") ?? "round";
@@ -82,7 +85,9 @@ export const Route = createFileRoute("/api/public/sporty-round")({
         const roundParam = url.searchParams.get("round");
         if (
           roundParam &&
-          (!/^\d{1,2}$/.test(roundParam) || Number(roundParam) < 1 || Number(roundParam) > 38)
+          (!/^\d{1,2}$/.test(roundParam) ||
+            Number(roundParam) < 1 ||
+            Number(roundParam) > 38)
         ) {
           return Response.json(
             { success: false, error: "Invalid round" },
@@ -116,7 +121,8 @@ export const Route = createFileRoute("/api/public/sporty-round")({
             const candidates: { id: string; roundCount: number }[] = [];
             for (let start = SCAN_TO; start >= SCAN_FROM; start -= BATCH) {
               const ids: number[] = [];
-              for (let i = 0; i < BATCH && start - i >= SCAN_FROM; i++) ids.push(start - i);
+              for (let i = 0; i < BATCH && start - i >= SCAN_FROM; i++)
+                ids.push(start - i);
               const results = await Promise.all(
                 ids.map(async (cat) => {
                   const data = (await fetchJson(
@@ -125,7 +131,10 @@ export const Route = createFileRoute("/api/public/sporty-round")({
                     round?: { matches?: { entryPointId?: number | string }[] };
                   } | null;
                   const matches = data?.round?.matches ?? [];
-                  if (matches.length > 0 && String(matches[0].entryPointId) === leagueId) {
+                  if (
+                    matches.length > 0 &&
+                    String(matches[0].entryPointId) === leagueId
+                  ) {
                     return { id: String(cat), roundCount: matches.length };
                   }
                   return null;
@@ -154,7 +163,9 @@ export const Route = createFileRoute("/api/public/sporty-round")({
           const round = url.searchParams.get("round");
           if (action === "results" && round) {
             const [matchesRes, playoutRes] = await Promise.all([
-              fetchJson(`${BASE}/round/${round}?eventCategoryId=${eventCategoryId}&getNext=false`),
+              fetchJson(
+                `${BASE}/round/${round}?eventCategoryId=${eventCategoryId}&getNext=false`,
+              ),
               fetchJson(
                 `${BASE}/round/${round}/playout?eventCategoryId=${eventCategoryId}&parentEventCategoryId=${leagueId}`,
               ),

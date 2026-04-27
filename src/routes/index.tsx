@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MultiMatchTab, emptyMatch, type MatchEntry } from "@/components/MultiMatchTab";
+import {
+  MultiMatchTab,
+  emptyMatch,
+  type MatchEntry,
+} from "@/components/MultiMatchTab";
 import { HistoryTab } from "@/components/HistoryTab";
 import { LearningDashboard } from "@/components/LearningDashboard";
 import type { PredictionResult } from "@/lib/prediction";
@@ -78,11 +82,15 @@ function TabBtn({
       onClick={onClick}
       className={cn(
         "relative px-4 py-2 font-mono text-xs uppercase tracking-widest transition-colors",
-        active ? "text-cyan" : "text-muted-foreground hover:text-foreground",
+        active
+          ? "text-cyan"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
-      {active && <span className="absolute inset-x-0 -bottom-px h-px bg-cyan" />}
+      {active && (
+        <span className="absolute inset-x-0 -bottom-px h-px bg-cyan" />
+      )}
     </button>
   );
 }

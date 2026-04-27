@@ -30,7 +30,9 @@ export function LearningDashboard() {
       (tt) => (
         <div className="space-y-2">
           <p className="font-mono text-xs">{t("ai.resetConfirm")}</p>
-          <p className="font-mono text-[10px] text-muted-foreground">{t("ai.resetAdvice")}</p>
+          <p className="font-mono text-[10px] text-muted-foreground">
+            {t("ai.resetAdvice")}
+          </p>
           <div className="flex gap-2">
             <button
               type="button"
@@ -78,28 +80,38 @@ export function LearningDashboard() {
   const lambdaAtMax = stats.weights.lambdaBoost >= 1.55;
   const homeAdvAtMin = stats.weights.homeAdvantage <= 0.87;
   const antiTrapAtMax = stats.weights.antiTrapStrength >= 1.55;
-  const weightsAtLimitCount = [drawBiasAtMax, lambdaAtMax, homeAdvAtMin, antiTrapAtMax].filter(
-    Boolean,
-  ).length;
+  const weightsAtLimitCount = [
+    drawBiasAtMax,
+    lambdaAtMax,
+    homeAdvAtMin,
+    antiTrapAtMax,
+  ].filter(Boolean).length;
   const weightsStuck = weightsAtLimitCount >= 2;
 
   const recommendations: string[] = [];
-  if (weightsAtLimitCount >= 2) recommendations.push(t("ai.recWeightsStuck"));
-  if (stats.nulPredicted === 0) recommendations.push(t("ai.recNoDraws"));
+  if (weightsAtLimitCount >= 2)
+    recommendations.push(t("ai.recWeightsStuck"));
+  if (stats.nulPredicted === 0)
+    recommendations.push(t("ai.recNoDraws"));
   else if (stats.nulAccuracy < 0.35 && stats.nulPredicted > 0)
     recommendations.push(t("ai.recLowDrawAccuracy"));
-  else if (stats.nulAccuracy >= 0.5) recommendations.push(t("ai.recDrawsGood"));
-  if (lambdaAtMax && weightsAtLimitCount < 2) recommendations.push(t("ai.recLambdaMax"));
-  if (homeAdvAtMin && weightsAtLimitCount < 2) recommendations.push(t("ai.recHomeAdvMin"));
+  else if (stats.nulAccuracy >= 0.5)
+    recommendations.push(t("ai.recDrawsGood"));
+  if (lambdaAtMax && weightsAtLimitCount < 2)
+    recommendations.push(t("ai.recLambdaMax"));
+  if (homeAdvAtMin && weightsAtLimitCount < 2)
+    recommendations.push(t("ai.recHomeAdvMin"));
   if (stats.domAccuracy < 0.5 && stats.validated > 20)
     recommendations.push(t("ai.recLowDomAccuracy"));
-  if (stats.totalMatches < 10) recommendations.push(t("ai.recValidateMore"));
+  if (stats.totalMatches < 10)
+    recommendations.push(t("ai.recValidateMore"));
   if (stats.recentAccuracy < 0.4 && stats.totalMatches >= 10)
     recommendations.push(t("ai.recLowAccuracy"));
   if (stats.trapTeams.length > 3) recommendations.push(t("ai.recTrapTeams"));
   if (recommendations.length === 0) recommendations.push(t("ai.recNominal"));
 
-  const domPredictedCount = stats.validated - stats.nulPredicted - stats.extPredicted;
+  const domPredictedCount =
+    stats.validated - stats.nulPredicted - stats.extPredicted;
 
   return (
     <div className="space-y-4">
@@ -212,7 +224,9 @@ export function LearningDashboard() {
           title={t("ai.overperformers")}
           subtitle={t("ai.overperformSubtitle")}
           emptyLabel={t("ai.none")}
-          items={stats.overperformTeams.map((tt) => `${tt.team_name} · +${tt.overperform_count}`)}
+          items={stats.overperformTeams.map(
+            (tt) => `${tt.team_name} · +${tt.overperform_count}`,
+          )}
           accent="lime"
         />
         <TeamList
@@ -317,7 +331,9 @@ function Metric({
       <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
         {label}
       </div>
-      <div className={`tabular-nums font-mono text-xl font-bold ${colorClass}`}>{value}</div>
+      <div className={`tabular-nums font-mono text-xl font-bold ${colorClass}`}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -360,7 +376,9 @@ function TeamList({
         : "text-danger border-danger/40";
   return (
     <div className={`space-y-1 border ${colorClass} bg-panel p-3`}>
-      <h4 className={`font-mono text-[10px] font-bold uppercase tracking-widest`}>{title}</h4>
+      <h4 className={`font-mono text-[10px] font-bold uppercase tracking-widest`}>
+        {title}
+      </h4>
       <p className="font-mono text-[9px] text-muted-foreground">{subtitle}</p>
       {items.length === 0 ? (
         <p className="font-mono text-[10px] text-muted-foreground">{emptyLabel}</p>

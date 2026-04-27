@@ -21,7 +21,8 @@ export function PredictionResults({ result }: Props) {
         ? "text-cyan border-cyan"
         : "text-warn border-warn";
 
-  const exactScoreCorrect = validated && realH === result.scoreHome && realA === result.scoreAway;
+  const exactScoreCorrect =
+    validated && realH === result.scoreHome && realA === result.scoreAway;
 
   return (
     <div className="space-y-4 border border-border bg-panel p-4 animate-in">
@@ -193,7 +194,9 @@ function Cell({ label, value }: { label: string; value: string }) {
       <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
         {label}
       </div>
-      <div className="tabular-nums font-mono text-xs font-bold text-foreground">{value}</div>
+      <div className="tabular-nums font-mono text-xs font-bold text-foreground">
+        {value}
+      </div>
     </div>
   );
 }

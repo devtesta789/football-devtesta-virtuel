@@ -33,7 +33,11 @@ interface Props {
 
 const LEAGUE_ID = "8035";
 
-export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }: Props) {
+export function RoundSyncPanel({
+  setMatches,
+  setResults,
+  setCurrentRoundNumber,
+}: Props) {
   const { t } = useTranslation();
   const [eventCategoryId, setEventCategoryIdState] = useState("");
   const [round, setRound] = useState("1");
@@ -168,7 +172,9 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
         setCurrentRoundNumber?.(parseInt(round));
 
         const unmatched = matches.filter((m) => !m.matched).length;
-        const withOdds = matches.filter((m) => m.oddsHome && m.oddsDraw && m.oddsAway).length;
+        const withOdds = matches.filter(
+          (m) => m.oddsHome && m.oddsDraw && m.oddsAway,
+        ).length;
         const playedCount = matches.filter((m) => m.played).length;
 
         toast.success(t("sync.syncedRound", { round, count: entries.length }));
@@ -220,7 +226,9 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
       if (r38 && r38.total > 0 && r38.played === r38.total) {
         toast(t("sync.seasonEnded"), { icon: "🏁", duration: 10000 });
       }
-      const playedRounds = sts.filter((s) => s.played === s.total && s.total > 0).length;
+      const playedRounds = sts.filter(
+        (s) => s.played === s.total && s.total > 0,
+      ).length;
       toast.success(t("sync.scanDone", { count: playedRounds }));
     } catch (e) {
       toast.error(t("sync.scanFailed", { error: (e as Error).message }));
@@ -246,7 +254,11 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
       } catch {
         /* silent */
       }
-      const { filled, statuses: updated } = await rescanPartialRounds(LEAGUE_ID, cat, partial);
+      const { filled, statuses: updated } = await rescanPartialRounds(
+        LEAGUE_ID,
+        cat,
+        partial,
+      );
       // Merge updated statuses into the existing list
       setStatuses((prev) => {
         const map = new Map(prev.map((s) => [s.round, s]));
@@ -266,11 +278,14 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
       const cat = await ensureCat();
       const { matches } = await fetchRound(LEAGUE_ID, String(roundNumber), cat);
       const playedMatches = matches.filter(
-        (m) => m.played && m.finalScoreHome !== undefined && m.finalScoreAway !== undefined,
+        (m) =>
+          m.played && m.finalScoreHome !== undefined && m.finalScoreAway !== undefined,
       );
       // Pull all history (no category filter) so older saisons can still be validated
       const history = await getPredictionHistory();
-      const pending = history.filter((h) => !h.validated && h.roundNumber === roundNumber);
+      const pending = history.filter(
+        (h) => !h.validated && h.roundNumber === roundNumber,
+      );
 
       if (pending.length === 0) {
         toast(t("sync.noPending", { round: roundNumber }), {
@@ -288,7 +303,9 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
       let validated = 0;
       let notFound = 0;
       for (const m of playedMatches) {
-        const pred = pending.find((p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam);
+        const pred = pending.find(
+          (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
+        );
         if (pred) {
           await updateModelWeights(pred, {
             home: m.finalScoreHome!,
@@ -352,7 +369,8 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
       const results = await Promise.all(
         played.flatMap((r) =>
           r.matches.map(async (m) => {
-            if (m.finalScoreHome === undefined || m.finalScoreAway === undefined) return false;
+            if (m.finalScoreHome === undefined || m.finalScoreAway === undefined)
+              return false;
             const pred = pending.find(
               (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
             );
@@ -371,7 +389,9 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
       setStatuses(sts);
 
       if (validated > 0) {
-        toast.success(t("sync.autoValidated", { count: validated, total: pending.length }));
+        toast.success(
+          t("sync.autoValidated", { count: validated, total: pending.length }),
+        );
         setTimeout(() => {
           toast(t("sync.checkDashboard"), { icon: "🧠", duration: 5000 });
         }, 2000);
@@ -439,7 +459,12 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
           const roundImported: PredictionResult[] = [];
           for (const match of matches) {
             const matchKey = `${roundNum}|${match.homeTeam}|${match.awayTeam}`;
-            if (existingSet.has(matchKey) || !match.oddsHome || !match.oddsDraw || !match.oddsAway)
+            if (
+              existingSet.has(matchKey) ||
+              !match.oddsHome ||
+              !match.oddsDraw ||
+              !match.oddsAway
+            )
               continue;
             try {
               const prediction = await predict(
@@ -449,7 +474,12 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
                 parseFloat(match.oddsDraw),
                 parseFloat(match.oddsAway),
               );
-              const id = await savePrediction(prediction, roundNum, match.matchTime, cat);
+              const id = await savePrediction(
+                prediction,
+                roundNum,
+                match.matchTime,
+                cat,
+              );
               if (id) {
                 roundImported.push({
                   ...prediction,
@@ -557,7 +587,9 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
           </span>
           {activeCat && (
             <>
-              <span className="font-mono text-[10px] text-muted-foreground">· cat {activeCat}</span>
+              <span className="font-mono text-[10px] text-muted-foreground">
+                · cat {activeCat}
+              </span>
               <span className="border border-lime/60 bg-lime/10 px-1 font-mono text-[9px] uppercase text-lime">
                 {t("sync.active")}
               </span>
@@ -626,13 +658,13 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
                     )}
                   >
                     <span>cat {cat.id}</span>
-                    <span>
-                      {cat.roundCount} {t("sync.matchesPerRound")}
-                    </span>
+                    <span>{cat.roundCount} {t("sync.matchesPerRound")}</span>
                   </button>
                 ))}
               </div>
-              <p className="font-mono text-[10px] text-warn">{t("sync.changeWarning")}</p>
+              <p className="font-mono text-[10px] text-warn">
+                {t("sync.changeWarning")}
+              </p>
             </div>
           )}
         </div>
@@ -723,7 +755,9 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
                       total: trainingProgress.total,
                     })}
                   </span>
-                  <span>{t("sync.matchesFound", { count: trainingProgress.matchesFound })}</span>
+                  <span>
+                    {t("sync.matchesFound", { count: trainingProgress.matchesFound })}
+                  </span>
                 </div>
                 <div className="h-1 w-full bg-border">
                   <div
@@ -746,7 +780,9 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
             <span>{t("sync.train")}</span>
           </button>
         )}
-        <p className="font-mono text-[10px] text-muted-foreground">{t("sync.trainHint")}</p>
+        <p className="font-mono text-[10px] text-muted-foreground">
+          {t("sync.trainHint")}
+        </p>
       </div>
 
       <button
@@ -755,7 +791,9 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
         disabled={validating}
         className="w-full border border-lime bg-lime/10 px-4 py-2 font-mono text-xs font-bold uppercase tracking-widest text-lime transition-colors hover:bg-lime/20 disabled:opacity-40"
       >
-        {validating ? `⟳ ${t("sync.validating")}` : `✓ ${t("sync.autoValidate")}`}
+        {validating
+          ? `⟳ ${t("sync.validating")}`
+          : `✓ ${t("sync.autoValidate")}`}
       </button>
 
       <button

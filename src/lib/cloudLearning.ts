@@ -22,25 +22,25 @@ export interface TeamMemoryRow {
 }
 
 const DEFAULT_WEIGHTS: ModelWeights = {
-  oddsWeight: 0.55,
-  formWeight: 0.22,
-  historyWeight: 0.23,
-  drawBias: 0.95,
-  homeAdvantage: 1.05,
-  antiTrapStrength: 1.15,
-  lambdaBoost: 0.95,
-  extBoost: 1.05,
+  oddsWeight: 0.58,
+  formWeight: 0.21,
+  historyWeight: 0.21,
+  drawBias: 1.05,
+  homeAdvantage: 1.02,
+  antiTrapStrength: 1.10,
+  lambdaBoost: 1.05,
+  extBoost: 1.04,
 };
 
 const BOUNDS: Record<keyof ModelWeights, [number, number]> = {
-  oddsWeight: [0.3, 0.8],
-  formWeight: [0.05, 0.45],
-  historyWeight: [0.05, 0.45],
-  drawBias: [0.7, 1.4],
-  homeAdvantage: [0.8, 1.25],
-  antiTrapStrength: [0.7, 1.7],
-  lambdaBoost: [0.6, 1.7],
-  extBoost: [0.9, 1.3],
+  oddsWeight: [0.35, 0.75],
+  formWeight: [0.08, 0.40],
+  historyWeight: [0.08, 0.40],
+  drawBias: [0.75, 1.30],
+  homeAdvantage: [0.85, 1.20],
+  antiTrapStrength: [0.80, 1.60],
+  lambdaBoost: [0.70, 1.60],
+  extBoost: [0.95, 1.25],
 };
 
 function clamp(v: number, [lo, hi]: [number, number]) {
@@ -129,21 +129,23 @@ export async function saveModelWeights(w: ModelWeights): Promise<void> {
     lambdaBoost: clamp(w.lambdaBoost, BOUNDS.lambdaBoost),
     extBoost: clamp(w.extBoost, BOUNDS.extBoost),
   };
-  await supabase.from("model_weights").upsert(
-    {
-      user_id: userId,
-      odds_weight: bounded.oddsWeight,
-      form_weight: bounded.formWeight,
-      history_weight: bounded.historyWeight,
-      draw_bias: bounded.drawBias,
-      home_advantage: bounded.homeAdvantage,
-      anti_trap_strength: bounded.antiTrapStrength,
-      lambda_boost: bounded.lambdaBoost,
-      ext_boost: bounded.extBoost,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" },
-  );
+  await supabase
+    .from("model_weights")
+    .upsert(
+      {
+        user_id: userId,
+        odds_weight: bounded.oddsWeight,
+        form_weight: bounded.formWeight,
+        history_weight: bounded.historyWeight,
+        draw_bias: bounded.drawBias,
+        home_advantage: bounded.homeAdvantage,
+        anti_trap_strength: bounded.antiTrapStrength,
+        lambda_boost: bounded.lambdaBoost,
+        ext_boost: bounded.extBoost,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
   weightsCache = bounded;
 }
 
@@ -151,7 +153,10 @@ export async function getTeamMemory(): Promise<TeamMemoryRow[]> {
   if (memoryCache) return memoryCache;
   const userId = await getUserId();
   if (!userId) return [];
-  const { data } = await supabase.from("team_memory").select("*").eq("user_id", userId);
+  const { data } = await supabase
+    .from("team_memory")
+    .select("*")
+    .eq("user_id", userId);
   memoryCache = (data ?? []).map((d) => ({
     team_name: d.team_name,
     trap_count: d.trap_count,
@@ -195,7 +200,8 @@ async function upsertTeamMemory(
     total_matches: newTotal,
     avg_goals_diff:
       patch.avg_goals_diff !== undefined
-        ? (row.avg_goals_diff * row.total_matches + patch.avg_goals_diff) / Math.max(1, newTotal)
+        ? (row.avg_goals_diff * row.total_matches + patch.avg_goals_diff) /
+          Math.max(1, newTotal)
         : row.avg_goals_diff,
     updated_at: new Date().toISOString(),
   };
@@ -224,13 +230,12 @@ export async function updateModelWeights(
   const realWinner =
     realScore.home > realScore.away ? "1" : realScore.away > realScore.home ? "2" : "X";
   const winnerCorrect = realWinner === item.winnerLabel;
-  const scoreCorrect = realScore.home === item.scoreHome && realScore.away === item.scoreAway;
+  const scoreCorrect =
+    realScore.home === item.scoreHome && realScore.away === item.scoreAway;
 
   const weights = await getModelWeights();
   const next = { ...weights };
-  const validatedCount = (await getLearningStats()).validated;
-  const baseLR = 0.025;
-  const lr = validatedCount < 100 ? baseLR * 1.5 : validatedCount < 300 ? baseLR : baseLR * 0.7;
+  const lr = 0.02;
 
   if (winnerCorrect) {
     next.oddsWeight += lr * 0.3;
@@ -300,7 +305,10 @@ export async function getTeamReliability(): Promise<Record<string, TeamReliabili
   for (const t of memory) {
     if (t.total_matches < 5) continue;
     const trapRate = t.trap_count / Math.max(1, t.total_matches);
-    result[t.team_name] = trapRate > 0.35 ? "low" : trapRate > 0.2 ? "medium" : "high";
+    result[t.team_name] =
+      trapRate > 0.35 ? "low"
+      : trapRate > 0.20 ? "medium"
+      : "high";
   }
   return result;
 }
@@ -392,7 +400,7 @@ export async function getLearningStats(): Promise<LearningStats> {
     .sort((a, b) => b.overperform_count - a.overperform_count)
     .slice(0, 5);
   const avoidTeams = memory
-    .filter((m) => m.total_matches >= 5 && m.trap_count / m.total_matches > 0.2)
+    .filter((m) => m.total_matches >= 5 && m.trap_count / m.total_matches > 0.20)
     .sort((a, b) => b.trap_count / b.total_matches - a.trap_count / a.total_matches)
     .slice(0, 5);
 
@@ -513,7 +521,9 @@ export async function savePrediction(
   return data.id;
 }
 
-export async function getPredictionHistory(eventCategoryId?: string): Promise<PredictionResult[]> {
+export async function getPredictionHistory(
+  eventCategoryId?: string,
+): Promise<PredictionResult[]> {
   const userId = await getUserId();
   if (!userId) return [];
 
@@ -561,14 +571,17 @@ export async function getPredictionHistory(eventCategoryId?: string): Promise<Pr
       confidenceStars: (pd.confidenceStars as number) ?? 0,
       valueBet: !!h.value_bet,
       valueBetMarket: h.value_bet ?? "",
-      valueBetType: (pd.valueBetType as "DOM" | "EXT" | "NUL" | null) ?? null,
+      valueBetType:
+        (pd.valueBetType as "DOM" | "EXT" | "NUL" | null) ?? null,
       hotMatch: (pd.hotMatch as boolean) ?? false,
       risky: (pd.risky as boolean) ?? false,
       pDOM: (pd.pDOM as number) ?? 0,
       pNUL: (pd.pNUL as number) ?? 0,
       pEXT: (pd.pEXT as number) ?? 0,
-      confidenceTier: (pd.confidenceTier as "SAFE" | "MEDIUM" | "AGGRESSIVE") ?? "MEDIUM",
-      topScores: (pd.topScores as { score: string; prob: number }[]) ?? [],
+      confidenceTier:
+        (pd.confidenceTier as "SAFE" | "MEDIUM" | "AGGRESSIVE") ?? "MEDIUM",
+      topScores:
+        (pd.topScores as { score: string; prob: number }[]) ?? [],
       entropy: (pd.entropy as number) ?? 0,
       scoreConfidence: (pd.scoreConfidence as number) ?? 0,
       timestamp: new Date(h.created_at).getTime(),
@@ -612,7 +625,12 @@ export async function getValidatedScoresMap(): Promise<
     .not("round_number", "is", null);
   const out: Record<string, { home: number; away: number }> = {};
   for (const r of data ?? []) {
-    if (r.round_number == null || r.real_score_home == null || r.real_score_away == null) continue;
+    if (
+      r.round_number == null ||
+      r.real_score_home == null ||
+      r.real_score_away == null
+    )
+      continue;
     out[`${r.round_number}|${r.home_team}|${r.away_team}`] = {
       home: r.real_score_home,
       away: r.real_score_away,
@@ -620,6 +638,8 @@ export async function getValidatedScoresMap(): Promise<
   }
   return out;
 }
+
+
 
 export async function getCurrentRegime(): Promise<{ name: string; avgGoals: number }> {
   const userId = await getUserId();
