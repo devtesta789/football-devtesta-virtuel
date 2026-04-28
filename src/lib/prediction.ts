@@ -126,20 +126,21 @@ function getTeamAdjustment(
   const overRate = m.overperform_count / Math.max(1, m.total_matches);
   const underRate = m.underperform_count / Math.max(1, m.total_matches);
 
+  // Anti-trap ALLÉGÉ : ne pénalise qu'au-dessus de 25% trap rate, max 12%
+  // (avant: 15% / 35% — trop agressif, détruisait les vrais favoris)
   let trapFactor = 1;
-  if (isFavorite && trapRate > 0.15) {
-    const penalty = Math.min((trapRate - 0.15) / 0.1, 1) * 0.35;
+  if (isFavorite && trapRate > 0.25) {
+    const penalty = Math.min((trapRate - 0.25) / 0.15, 1) * 0.12;
     trapFactor = 1 - penalty;
   }
-
-  if (isFavorite && underRate > 0.08) {
-    trapFactor *= 1 - underRate * 0.5;
+  if (isFavorite && underRate > 0.15) {
+    trapFactor *= 1 - Math.min(underRate * 0.25, 0.1);
   }
 
   let overperformFactor = 1;
-  if (overRate > 0.12) overperformFactor = 1 + Math.min(overRate * 0.4, 0.25);
+  if (overRate > 0.15) overperformFactor = 1 + Math.min(overRate * 0.3, 0.18);
 
-  return { trapFactor: Math.max(0.6, trapFactor), overperformFactor };
+  return { trapFactor: Math.max(0.82, trapFactor), overperformFactor };
 }
 
 const DYNAMIC_BONUS_00_MAP: [number, number][] = [
