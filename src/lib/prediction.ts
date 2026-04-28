@@ -435,31 +435,30 @@ export async function predict(
         ? "MEDIUM"
         : "AGGRESSIVE";
 
-  // VB cohérent avec le winner prédit (CRITIQUE)
-  if (confidence >= 55 && (confidenceTier === "SAFE" || confidenceTier === "MEDIUM")) {
-    if (winnerLabel === "1" && pDOM > impliedH * 1.18) {
+  // VALUE BET strict : edge minimum 25% (DOM/EXT) ou 40% (NUL — précision réelle 25%)
+  // Cohérent avec winner prédit + confiance suffisante
+  if (confidence >= 60 && (confidenceTier === "SAFE" || confidenceTier === "MEDIUM")) {
+    if (winnerLabel === "1" && pDOM > impliedH * 1.25 && oddsHome >= 1.5) {
       valueBetType = "DOM";
       valueBetMarket = "1";
-    } else if (winnerLabel === "2" && pEXT > impliedA * 1.18) {
+    } else if (winnerLabel === "2" && pEXT > impliedA * 1.25 && oddsAway >= 1.5) {
       valueBetType = "EXT";
       valueBetMarket = "2";
-    } else if (winnerLabel === "X" && pNUL > impliedD * 1.35) {
+    } else if (winnerLabel === "X" && pNUL > impliedD * 1.4 && oddsDraw <= 3.2) {
       valueBetType = "NUL";
       valueBetMarket = "X";
     }
   }
 
-  // SAFE plus restrictif : DOM ≤1.4 réel = 77%, EXT ≤1.5 = 53%
   const isSafeZone =
     (winnerLabel === "1" && oddsHome <= 1.45 && confidence >= 60) ||
     (winnerLabel === "2" && oddsAway <= 1.5 && confidence >= 60);
 
-  // PIÈGE : zones identifiées par les données (44% precision)
+  // Risky simplifié : faible confiance OU EXT cote haute OU NUL cote haute
   const risky =
-    confidence < 48 ||
-    pNUL > 0.30 ||
-    (winnerLabel === "1" && oddsHome >= 1.7 && oddsHome <= 2.6) ||
-    (winnerLabel === "2" && oddsAway > 2.2);
+    confidence < 50 ||
+    (winnerLabel === "2" && oddsAway > 2.5) ||
+    (winnerLabel === "X" && oddsDraw > 3.2);
 
   const entropy = -topScores.reduce((s, c) => s + (c.prob > 0 ? c.prob * Math.log2(c.prob) : 0), 0);
   const scoreConfidence = topScores[0]?.prob ?? 0;
