@@ -27,6 +27,29 @@ export const TEAMS = [
   "Wolverhampton",
 ].sort();
 
+const TEAM_STRENGTH: Record<string, { overall: number; home: number; away: number }> = {
+  "A. Villa": { overall: 0.561, home: 0.709, away: 0.414 },
+  Bournemouth: { overall: 0.382, home: 0.471, away: 0.292 },
+  Brentford: { overall: 0.462, home: 0.542, away: 0.386 },
+  Brighton: { overall: 0.555, home: 0.625, away: 0.482 },
+  Burnley: { overall: 0.351, home: 0.46, away: 0.238 },
+  "C. Palace": { overall: 0.521, home: 0.667, away: 0.378 },
+  Everton: { overall: 0.456, home: 0.524, away: 0.391 },
+  Fulham: { overall: 0.427, home: 0.523, away: 0.329 },
+  Leeds: { overall: 0.272, home: 0.343, away: 0.2 },
+  Liverpool: { overall: 0.62, home: 0.81, away: 0.423 },
+  "London Blues": { overall: 0.512, home: 0.663, away: 0.371 },
+  "London Reds": { overall: 0.792, home: 0.799, away: 0.784 },
+  "Manchester Blue": { overall: 0.712, home: 0.878, away: 0.547 },
+  "Manchester Red": { overall: 0.497, home: 0.682, away: 0.314 },
+  "N. Forest": { overall: 0.426, home: 0.534, away: 0.311 },
+  Newcastle: { overall: 0.619, home: 0.764, away: 0.471 },
+  Spurs: { overall: 0.549, home: 0.685, away: 0.42 },
+  Sunderland: { overall: 0.267, home: 0.262, away: 0.273 },
+  "West Ham": { overall: 0.497, home: 0.594, away: 0.4 },
+  Wolverhampton: { overall: 0.523, home: 0.671, away: 0.378 },
+};
+
 const SCORE_PRIORS: Record<string, number> = {
   // Draws — volontairement sobres: le NUL et surtout 1-1 étaient sur-prédits
   "1-1": 1.35,
