@@ -126,20 +126,21 @@ function getTeamAdjustment(
   const overRate = m.overperform_count / Math.max(1, m.total_matches);
   const underRate = m.underperform_count / Math.max(1, m.total_matches);
 
+  // Anti-trap ALLÉGÉ : ne pénalise qu'au-dessus de 25% trap rate, max 12%
+  // (avant: 15% / 35% — trop agressif, détruisait les vrais favoris)
   let trapFactor = 1;
-  if (isFavorite && trapRate > 0.15) {
-    const penalty = Math.min((trapRate - 0.15) / 0.1, 1) * 0.35;
+  if (isFavorite && trapRate > 0.25) {
+    const penalty = Math.min((trapRate - 0.25) / 0.15, 1) * 0.12;
     trapFactor = 1 - penalty;
   }
-
-  if (isFavorite && underRate > 0.08) {
-    trapFactor *= 1 - underRate * 0.5;
+  if (isFavorite && underRate > 0.15) {
+    trapFactor *= 1 - Math.min(underRate * 0.25, 0.1);
   }
 
   let overperformFactor = 1;
-  if (overRate > 0.12) overperformFactor = 1 + Math.min(overRate * 0.4, 0.25);
+  if (overRate > 0.15) overperformFactor = 1 + Math.min(overRate * 0.3, 0.18);
 
-  return { trapFactor: Math.max(0.6, trapFactor), overperformFactor };
+  return { trapFactor: Math.max(0.82, trapFactor), overperformFactor };
 }
 
 const DYNAMIC_BONUS_00_MAP: [number, number][] = [
@@ -233,186 +234,74 @@ export async function predict(
     pDOM *= homeAdj.trapFactor * homeAdj.overperformFactor;
     pEXT *= awayAdj.trapFactor * awayAdj.overperformFactor;
 
-    if (oddsHome >= 1.6 && oddsHome <= 1.8) {
-      const reduction = (weights.antiTrapStrength - 1) * 0.1;
-      pDOM *= 1 - reduction;
-      pNUL *= 1 + reduction * 0.5;
-      pEXT *= 1 + reduction * 0.5;
-    }
-    if (oddsAway >= 1.6 && oddsAway <= 1.8) {
-      const reduction = (weights.antiTrapStrength - 1) * 0.1;
-      pEXT *= 1 - reduction;
-      pNUL *= 1 + reduction * 0.5;
-      pDOM *= 1 + reduction * 0.5;
-    }
+    // === MODÈLE SIMPLIFIÉ — basé sur stats réelles 766 matchs ===
+    // Précision favori marché brut: 54%, DOM favori: 65.7%, NUL>3.5: 22%
+    // Stratégie: faire confiance aux odds, anti-trap MINIMAL, NUL très restrictif
 
-    const sum = pDOM + pNUL + pEXT;
-    pDOM /= sum;
-    pNUL /= sum;
-    pEXT /= sum;
-
-    // Zone piège DOM 1.7-2.6 : précision réelle observée 44% — redistribuer fortement
-    // Données: 30% deviennent NUL, 26% EXT, 44% DOM
-    if (oddsHome >= 1.7 && oddsHome <= 2.6) {
-      const trapRisk = Math.min((oddsHome - 1.7) / 0.9, 1);
-      const transfer = pDOM * (0.15 + trapRisk * 0.20); // 15% à 35% transféré
-      pDOM -= transfer;
-      pNUL += transfer * 0.55;
-      pEXT += transfer * 0.45;
-      const s = pDOM + pNUL + pEXT;
-      pDOM /= s;
-      pNUL /= s;
-      pEXT /= s;
+    // Léger anti-trap zone DOM 1.7-2.4 (3% transfert max, pas 35%)
+    if (oddsHome >= 1.7 && oddsHome <= 2.4 && weights.antiTrapStrength > 1) {
+      const t = pDOM * 0.03 * Math.min(weights.antiTrapStrength - 1, 1);
+      pDOM -= t;
+      pNUL += t * 0.6;
+      pEXT += t * 0.4;
     }
 
-    // Zone EXT favori 1.5-2.0 : 52% EXT, 27% NUL, 22% DOM réel — léger transfert vers NUL/DOM
-    if (oddsAway >= 1.5 && oddsAway <= 2.0 && oddsHome >= 2.5) {
-      const transfer = pEXT * 0.18;
-      pEXT -= transfer;
-      pNUL += transfer * 0.55;
-      pDOM += transfer * 0.45;
-      const s = pDOM + pNUL + pEXT;
-      pDOM /= s;
-      pNUL /= s;
-      pEXT /= s;
-    }
-
-    // Redistribution piège : équipe favorite avec fort trap rate
-    const homeTrapMem = memory.find((t) => t.team_name === homeTeam);
-    const awayTrapMem = memory.find((t) => t.team_name === awayTeam);
-
-    if (homeTrapMem && homeTrapMem.total_matches >= 5) {
-      const homeTrapRate = homeTrapMem.trap_count / homeTrapMem.total_matches;
-      if (oddsHome < 2.0 && homeTrapRate > 0.18) {
-        const transfert = pDOM * homeTrapRate * 0.4;
-        pDOM -= transfert;
-        pNUL += transfert * 0.6;
-        pEXT += transfert * 0.4;
-      }
-    }
-
-    if (awayTrapMem && awayTrapMem.total_matches >= 5) {
-      const awayTrapRate = awayTrapMem.trap_count / awayTrapMem.total_matches;
-      if (oddsAway < 2.0 && awayTrapRate > 0.18) {
-        const transfert = pEXT * awayTrapRate * 0.4;
-        pEXT -= transfert;
-        pNUL += transfert * 0.6;
-        pDOM += transfert * 0.4;
-      }
-    }
-
-    // Re-normalize after trap redistribution
+    // Re-normalize
     {
-      const s2 = pDOM + pNUL + pEXT;
-      pDOM /= s2;
-      pNUL /= s2;
-      pEXT /= s2;
+      const s = pDOM + pNUL + pEXT;
+      pDOM /= s; pNUL /= s; pEXT /= s;
     }
 
-    // Détection nul élargie
-    const balancedMatch = Math.abs(oddsHome - oddsAway) < 0.6;
-    const moderateOdds = oddsHome > 1.8 && oddsHome < 4.0 && oddsAway > 1.8 && oddsAway < 4.0;
-    const drawIndicator = oddsDraw < 3.8;
-    const drawOddsStrong = oddsDraw < 3.0;
-    const likelyDraw = (balancedMatch && moderateOdds && drawIndicator) || drawOddsStrong;
-
-    if (likelyDraw) {
-      const boostFactor = drawOddsStrong ? 1.35 : 1.2;
-      pNUL *= boostFactor;
-      const scaledSum = pDOM + pNUL + pEXT;
-      pDOM /= scaledSum;
-      pNUL /= scaledSum;
-      pEXT /= scaledSum;
+    // Plafond NUL strict : jamais > 38% sauf si cote nul vraiment basse
+    const nulCeiling = oddsDraw < 3.0 ? 0.45 : oddsDraw < 3.4 ? 0.38 : 0.32;
+    if (pNUL > nulCeiling) {
+      const excess = pNUL - nulCeiling;
+      pNUL = nulCeiling;
+      const denom = pDOM + pEXT || 1;
+      pDOM += excess * (pDOM / denom);
+      pEXT += excess * (pEXT / denom);
     }
 
-    const ceilingNUL =
-      regime.name === "DEFENSIVE" ? 0.48 : regime.name === "OFFENSIVE" ? 0.32 : 0.4;
-    if (pNUL > ceilingNUL) {
-      const excess = pNUL - ceilingNUL;
-      pNUL = ceilingNUL;
-      pDOM += excess * (pDOM / (pDOM + pEXT));
-      pEXT += excess * (pEXT / (pDOM + pEXT));
-    }
-
+    // Apply learning weights legers
     if (winPenaltyFactor < 1) {
       pDOM *= winPenaltyFactor;
       pEXT *= winPenaltyFactor;
     }
     pNUL *= nulBonusFactor;
-    const sumAfterPenalty = pDOM + pNUL + pEXT;
-    pDOM /= sumAfterPenalty;
-    pNUL /= sumAfterPenalty;
-    pEXT /= sumAfterPenalty;
+    {
+      const s = pDOM + pNUL + pEXT;
+      pDOM /= s; pNUL /= s; pEXT /= s;
+    }
 
-    // Boost NUL conditionnel plus agressif
-    const nulBoostFactor =
-      oddsDraw < 2.5
-        ? 1.8
-        : oddsDraw < 3.0
-          ? 1.5
-          : oddsDraw < 3.8
-            ? 1.2
-            : oddsDraw < 5.0
-              ? 0.9
-              : 0.65;
-    const pNUL_decision = pNUL * nulBoostFactor;
+    // === DÉCISION SIMPLE: argmax avec règle NUL restrictive ===
+    // NUL n'est choisi QUE si:
+    //   - oddsDraw <= 3.3 (sinon précision NUL = 22-25%)
+    //   - ET pNUL est le max
+    //   - ET match équilibré (|oddsHome - oddsAway| < 0.8)
+    const drawAllowed =
+      oddsDraw <= 3.3 && Math.abs(oddsHome - oddsAway) < 0.8;
 
-    if (pDOM >= pEXT && pDOM >= pNUL_decision) {
+    if (pDOM >= pEXT && pDOM >= pNUL) {
       winnerLabel = "1";
       winProb = pDOM;
-    } else if (pEXT >= pNUL_decision) {
+    } else if (pEXT >= pDOM && pEXT >= pNUL) {
       winnerLabel = "2";
       winProb = pEXT;
-    } else {
+    } else if (drawAllowed) {
       winnerLabel = "X";
       winProb = pNUL;
+    } else {
+      // NUL serait gagnant mais conditions pas remplies → favori marché
+      if (pDOM >= pEXT) { winnerLabel = "1"; winProb = pDOM; }
+      else { winnerLabel = "2"; winProb = pEXT; }
     }
 
-    // BLOCAGE EXT haut risque : odds_away > 2.8 = 29% précision réelle (123 matchs)
-    // 46% deviennent victoire DOM → bascule vers DOM ou NUL
-    if (winnerLabel === "2" && oddsAway > 2.8) {
-      if (pDOM > pNUL * 0.85) {
-        winnerLabel = "1";
-        winProb = pDOM;
-      } else {
-        winnerLabel = "X";
-        winProb = pNUL;
-      }
-    }
-    // EXT modéré 2.2-2.8 : 47% précision — bascule si NUL ou DOM proche
-    else if (winnerLabel === "2" && oddsAway > 2.2) {
-      const nulBoostLocal = pNUL * 1.3;
-      const domBoostLocal = pDOM * 1.15;
-      if (domBoostLocal > pEXT && domBoostLocal >= nulBoostLocal) {
-        winnerLabel = "1";
-        winProb = pDOM;
-      } else if (nulBoostLocal > pEXT) {
-        winnerLabel = "X";
-        winProb = pNUL;
-      }
-    }
-
-    // BLOCAGE NUL haut risque : odds_draw > 3.6 = 23% précision (82 matchs)
-    // 50% sont DOM, 27% sont EXT → bascule sur favori du marché
-    if (winnerLabel === "X" && oddsDraw > 3.6) {
-      if (oddsHome <= oddsAway) {
-        winnerLabel = "1";
-        winProb = pDOM;
-      } else {
-        winnerLabel = "2";
-        winProb = pEXT;
-      }
-    }
-
-    // EXT avec confiance insuffisante (<45%) → bascule
-    if (winnerLabel === "2" && winProb * 100 < 45) {
-      if (pDOM > pNUL) {
-        winnerLabel = "1";
-        winProb = pDOM;
-      } else {
-        winnerLabel = "X";
-        winProb = pNUL;
-      }
+    // GARDE-FOU UNIQUE: EXT avec cote très haute (>3.0) = 30% précision
+    // → bascule vers favori du marché
+    if (winnerLabel === "2" && oddsAway > 3.0) {
+      if (oddsHome <= oddsDraw) { winnerLabel = "1"; winProb = pDOM; }
+      else if (drawAllowed) { winnerLabel = "X"; winProb = pNUL; }
+      else { winnerLabel = "1"; winProb = pDOM; }
     }
   }
 
@@ -546,31 +435,30 @@ export async function predict(
         ? "MEDIUM"
         : "AGGRESSIVE";
 
-  // VB cohérent avec le winner prédit (CRITIQUE)
-  if (confidence >= 55 && (confidenceTier === "SAFE" || confidenceTier === "MEDIUM")) {
-    if (winnerLabel === "1" && pDOM > impliedH * 1.18) {
+  // VALUE BET strict : edge minimum 25% (DOM/EXT) ou 40% (NUL — précision réelle 25%)
+  // Cohérent avec winner prédit + confiance suffisante
+  if (confidence >= 60 && (confidenceTier === "SAFE" || confidenceTier === "MEDIUM")) {
+    if (winnerLabel === "1" && pDOM > impliedH * 1.25 && oddsHome >= 1.5) {
       valueBetType = "DOM";
       valueBetMarket = "1";
-    } else if (winnerLabel === "2" && pEXT > impliedA * 1.18) {
+    } else if (winnerLabel === "2" && pEXT > impliedA * 1.25 && oddsAway >= 1.5) {
       valueBetType = "EXT";
       valueBetMarket = "2";
-    } else if (winnerLabel === "X" && pNUL > impliedD * 1.35) {
+    } else if (winnerLabel === "X" && pNUL > impliedD * 1.4 && oddsDraw <= 3.2) {
       valueBetType = "NUL";
       valueBetMarket = "X";
     }
   }
 
-  // SAFE plus restrictif : DOM ≤1.4 réel = 77%, EXT ≤1.5 = 53%
   const isSafeZone =
     (winnerLabel === "1" && oddsHome <= 1.45 && confidence >= 60) ||
     (winnerLabel === "2" && oddsAway <= 1.5 && confidence >= 60);
 
-  // PIÈGE : zones identifiées par les données (44% precision)
+  // Risky simplifié : faible confiance OU EXT cote haute OU NUL cote haute
   const risky =
-    confidence < 48 ||
-    pNUL > 0.30 ||
-    (winnerLabel === "1" && oddsHome >= 1.7 && oddsHome <= 2.6) ||
-    (winnerLabel === "2" && oddsAway > 2.2);
+    confidence < 50 ||
+    (winnerLabel === "2" && oddsAway > 2.5) ||
+    (winnerLabel === "X" && oddsDraw > 3.2);
 
   const entropy = -topScores.reduce((s, c) => s + (c.prob > 0 ? c.prob * Math.log2(c.prob) : 0), 0);
   const scoreConfidence = topScores[0]?.prob ?? 0;
