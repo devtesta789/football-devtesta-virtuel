@@ -368,26 +368,50 @@ export async function predict(
       winProb = pNUL;
     }
 
-    // Bloquer EXT quand cotes trop élevées (34% de précision réelle)
-    if (winnerLabel === "2" && oddsAway > 2.2) {
-      const nulBoostLocal = pNUL * 1.4;
-      if (nulBoostLocal > pEXT) {
-        winnerLabel = "X";
-        winProb = pNUL;
-      } else {
+    // BLOCAGE EXT haut risque : odds_away > 2.8 = 29% précision réelle (123 matchs)
+    // 46% deviennent victoire DOM → bascule vers DOM ou NUL
+    if (winnerLabel === "2" && oddsAway > 2.8) {
+      if (pDOM > pNUL * 0.85) {
         winnerLabel = "1";
         winProb = pDOM;
+      } else {
+        winnerLabel = "X";
+        winProb = pNUL;
+      }
+    }
+    // EXT modéré 2.2-2.8 : 47% précision — bascule si NUL ou DOM proche
+    else if (winnerLabel === "2" && oddsAway > 2.2) {
+      const nulBoostLocal = pNUL * 1.3;
+      const domBoostLocal = pDOM * 1.15;
+      if (domBoostLocal > pEXT && domBoostLocal >= nulBoostLocal) {
+        winnerLabel = "1";
+        winProb = pDOM;
+      } else if (nulBoostLocal > pEXT) {
+        winnerLabel = "X";
+        winProb = pNUL;
       }
     }
 
-    // EXT avec confiance insuffisante → trop risqué
-    if (winnerLabel === "2" && winProb * 100 < 50) {
-      if (pNUL > pDOM) {
-        winnerLabel = "X";
-        winProb = pNUL;
-      } else {
+    // BLOCAGE NUL haut risque : odds_draw > 3.6 = 23% précision (82 matchs)
+    // 50% sont DOM, 27% sont EXT → bascule sur favori du marché
+    if (winnerLabel === "X" && oddsDraw > 3.6) {
+      if (oddsHome <= oddsAway) {
         winnerLabel = "1";
         winProb = pDOM;
+      } else {
+        winnerLabel = "2";
+        winProb = pEXT;
+      }
+    }
+
+    // EXT avec confiance insuffisante (<45%) → bascule
+    if (winnerLabel === "2" && winProb * 100 < 45) {
+      if (pDOM > pNUL) {
+        winnerLabel = "1";
+        winProb = pDOM;
+      } else {
+        winnerLabel = "X";
+        winProb = pNUL;
       }
     }
   }
