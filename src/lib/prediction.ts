@@ -209,121 +209,38 @@ export async function predict(
   nulBonusFactor = 1,
 ): Promise<PredictionResult> {
   const weights: ModelWeights = await getModelWeights();
-  const memory = await getTeamMemory();
-  const regime = await getCurrentRegime();
 
   let winnerLabel: string;
   let pDOM: number;
   let pNUL: number;
   let pEXT: number;
   let winProb = 0;
-  let modelUsed = false;
 
-  const currentModel = getCurrentModel();
-  if (!currentModel) {
-    try {
-      await getOrTrainModel();
-    } catch {
-      // fallback to heuristics when not enough supervised data
-    }
-  }
+  const homeStrength = TEAM_STRENGTH[homeTeam] ?? { overall: 0.5, home: 0.55, away: 0.45 };
+  const awayStrength = TEAM_STRENGTH[awayTeam] ?? { overall: 0.5, home: 0.55, away: 0.45 };
+  const venueGap = homeStrength.home - awayStrength.away;
+  const homeScore = (1 / oddsHome) * Math.exp(-0.03 + 2.22 * venueGap);
+  const awayScore = (1 / oddsAway) * Math.exp(2.22 * -venueGap);
+  const drawScore = (1 / oddsDraw) * 0.55;
+  const scoreTotal = homeScore + drawScore + awayScore;
 
-  const trainedModel = getCurrentModel();
-  if (trainedModel && trainedModel.isTrained()) {
-    modelUsed = true;
-    const pred = trainedModel.predict([oddsHome, oddsDraw, oddsAway]);
-    winnerLabel = pred.label;
-    pDOM = pred.probs["1"] ?? 0.33;
-    pNUL = pred.probs["X"] ?? 0.33;
-    pEXT = pred.probs["2"] ?? 0.33;
-    winProb = pred.probs[winnerLabel] ?? 0.33;
+  pDOM = homeScore / scoreTotal;
+  pNUL = drawScore / scoreTotal;
+  pEXT = awayScore / scoreTotal;
+
+  const decisionMargin = Math.abs(Math.log(homeScore / awayScore));
+  const drawAllowed =
+    decisionMargin <= 0.1 && oddsDraw <= 3.5 && Math.abs(oddsHome - oddsAway) <= 1.3;
+
+  if (drawAllowed) {
+    winnerLabel = "X";
+    winProb = Math.max(pNUL, 0.34);
+  } else if (homeScore >= awayScore) {
+    winnerLabel = "1";
+    winProb = pDOM;
   } else {
-    const invH = 1 / oddsHome;
-    const invD = 1 / oddsDraw;
-    const invA = 1 / oddsAway;
-    const total = invH + invD + invA;
-    pDOM = invH / total;
-    pNUL = invD / total;
-    pEXT = invA / total;
-
-    pDOM *= weights.homeAdvantage;
-    pNUL *= weights.drawBias;
-    pEXT *= weights.extBoost;
-
-    const homeAdj = getTeamAdjustment(homeTeam, oddsHome < 1.8, memory);
-    const awayAdj = getTeamAdjustment(awayTeam, oddsAway < 1.8, memory);
-    pDOM *= homeAdj.trapFactor * homeAdj.overperformFactor;
-    pEXT *= awayAdj.trapFactor * awayAdj.overperformFactor;
-
-    // === MODÈLE SIMPLIFIÉ — basé sur stats réelles 766 matchs ===
-    // Précision favori marché brut: 54%, DOM favori: 65.7%, NUL>3.5: 22%
-    // Stratégie: faire confiance aux odds, anti-trap MINIMAL, NUL très restrictif
-
-    // Léger anti-trap zone DOM 1.7-2.4 (3% transfert max, pas 35%)
-    if (oddsHome >= 1.7 && oddsHome <= 2.4 && weights.antiTrapStrength > 1) {
-      const t = pDOM * 0.03 * Math.min(weights.antiTrapStrength - 1, 1);
-      pDOM -= t;
-      pNUL += t * 0.6;
-      pEXT += t * 0.4;
-    }
-
-    // Re-normalize
-    {
-      const s = pDOM + pNUL + pEXT;
-      pDOM /= s; pNUL /= s; pEXT /= s;
-    }
-
-    // Plafond NUL strict : jamais > 38% sauf si cote nul vraiment basse
-    const nulCeiling = oddsDraw < 3.0 ? 0.45 : oddsDraw < 3.4 ? 0.38 : 0.32;
-    if (pNUL > nulCeiling) {
-      const excess = pNUL - nulCeiling;
-      pNUL = nulCeiling;
-      const denom = pDOM + pEXT || 1;
-      pDOM += excess * (pDOM / denom);
-      pEXT += excess * (pEXT / denom);
-    }
-
-    // Apply learning weights legers
-    if (winPenaltyFactor < 1) {
-      pDOM *= winPenaltyFactor;
-      pEXT *= winPenaltyFactor;
-    }
-    pNUL *= nulBonusFactor;
-    {
-      const s = pDOM + pNUL + pEXT;
-      pDOM /= s; pNUL /= s; pEXT /= s;
-    }
-
-    // === DÉCISION SIMPLE: argmax avec règle NUL restrictive ===
-    // NUL n'est choisi QUE si:
-    //   - oddsDraw <= 3.3 (sinon précision NUL = 22-25%)
-    //   - ET pNUL est le max
-    //   - ET match équilibré (|oddsHome - oddsAway| < 0.8)
-    const drawAllowed =
-      oddsDraw <= 3.3 && Math.abs(oddsHome - oddsAway) < 0.8;
-
-    if (pDOM >= pEXT && pDOM >= pNUL) {
-      winnerLabel = "1";
-      winProb = pDOM;
-    } else if (pEXT >= pDOM && pEXT >= pNUL) {
-      winnerLabel = "2";
-      winProb = pEXT;
-    } else if (drawAllowed) {
-      winnerLabel = "X";
-      winProb = pNUL;
-    } else {
-      // NUL serait gagnant mais conditions pas remplies → favori marché
-      if (pDOM >= pEXT) { winnerLabel = "1"; winProb = pDOM; }
-      else { winnerLabel = "2"; winProb = pEXT; }
-    }
-
-    // GARDE-FOU UNIQUE: EXT avec cote très haute (>3.0) = 30% précision
-    // → bascule vers favori du marché
-    if (winnerLabel === "2" && oddsAway > 3.0) {
-      if (oddsHome <= oddsDraw) { winnerLabel = "1"; winProb = pDOM; }
-      else if (drawAllowed) { winnerLabel = "X"; winProb = pNUL; }
-      else { winnerLabel = "1"; winProb = pDOM; }
-    }
+    winnerLabel = "2";
+    winProb = pEXT;
   }
 
   let lH = (1.45 + (1.9 - oddsHome) * 0.35) * weights.lambdaBoost;
@@ -339,25 +256,6 @@ export async function predict(
   else if (oddsHome > 2.8 && oddsAway < 2.3) goalAdjustment = 1.1;
   lH *= goalAdjustment;
   lA *= goalAdjustment;
-
-  if (winPenaltyFactor < 1) {
-    pDOM *= winPenaltyFactor;
-    pEXT *= winPenaltyFactor;
-  }
-  pNUL *= nulBonusFactor;
-  const sumAfterPenalty = pDOM + pNUL + pEXT;
-  pDOM /= sumAfterPenalty;
-  pNUL /= sumAfterPenalty;
-  pEXT /= sumAfterPenalty;
-
-  if (modelUsed) {
-    const winProbMap: Record<"1" | "X" | "2", number> = {
-      "1": pDOM,
-      X: pNUL,
-      "2": pEXT,
-    };
-    winProb = winProbMap[winnerLabel as "1" | "X" | "2"] ?? 0.33;
-  }
 
   const impliedH = 1 / oddsHome;
   const impliedD = 1 / oddsDraw;
