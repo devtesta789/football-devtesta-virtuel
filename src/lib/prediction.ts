@@ -251,13 +251,26 @@ export async function predict(
     pNUL /= sum;
     pEXT /= sum;
 
-    // Zone piège DOM : redistribuer vers NUL proportionnellement à la cote (1.5–2.2)
-    if (oddsHome >= 1.5 && oddsHome <= 2.2) {
-      const trapRisk = (oddsHome - 1.5) / 0.7;
-      const transfer = pDOM * trapRisk * 0.18;
+    // Zone piège DOM 1.7-2.6 : précision réelle observée 44% — redistribuer fortement
+    // Données: 30% deviennent NUL, 26% EXT, 44% DOM
+    if (oddsHome >= 1.7 && oddsHome <= 2.6) {
+      const trapRisk = Math.min((oddsHome - 1.7) / 0.9, 1);
+      const transfer = pDOM * (0.15 + trapRisk * 0.20); // 15% à 35% transféré
       pDOM -= transfer;
-      pNUL += transfer * 0.65;
-      pEXT += transfer * 0.35;
+      pNUL += transfer * 0.55;
+      pEXT += transfer * 0.45;
+      const s = pDOM + pNUL + pEXT;
+      pDOM /= s;
+      pNUL /= s;
+      pEXT /= s;
+    }
+
+    // Zone EXT favori 1.5-2.0 : 52% EXT, 27% NUL, 22% DOM réel — léger transfert vers NUL/DOM
+    if (oddsAway >= 1.5 && oddsAway <= 2.0 && oddsHome >= 2.5) {
+      const transfer = pEXT * 0.18;
+      pEXT -= transfer;
+      pNUL += transfer * 0.55;
+      pDOM += transfer * 0.45;
       const s = pDOM + pNUL + pEXT;
       pDOM /= s;
       pNUL /= s;
