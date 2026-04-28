@@ -265,7 +265,6 @@ export async function predict(
   const winner = winnerLabel === "1" ? homeTeam : winnerLabel === "2" ? awayTeam : "Match Nul";
 
   const candidates: { i: number; j: number; prob: number }[] = [];
-  const bonuses = getScoreBonuses(oddsHome);
   for (let i = 0; i <= 6; i++) {
     for (let j = 0; j <= 6; j++) {
       const key = `${i}-${j}`;
@@ -274,13 +273,12 @@ export async function predict(
 
       // UN SEUL bloc de bonus par score — pas de cumul
       if (i === 0 && j === 0) {
-        const bonus00 = oddsDraw < 2.5 ? 2.2 : oddsDraw < 3.0 ? 1.8 : oddsDraw < 4.0 ? 1.2 : 0.7;
-        prob *= bonus00;
+        prob *= getBonus00(oddsDraw);
       } else if (i === 1 && j === 1) {
-        const bonus11 = oddsDraw < 3.0 ? 3.5 : oddsDraw < 3.8 ? 2.8 : 1.8;
+        const bonus11 = oddsDraw < 3.0 ? 1.55 : oddsDraw < 3.8 ? 1.25 : 0.9;
         prob *= bonus11;
       } else if (i === 2 && j === 2) {
-        prob *= 2.0;
+        prob *= 0.75;
       } else if (i === 1 && j === 0) {
         const bonus10 = oddsHome < 1.4 ? 1.8 : oddsHome < 1.8 ? 1.5 : oddsHome < 2.5 ? 1.2 : 0.9;
         prob *= bonus10;
