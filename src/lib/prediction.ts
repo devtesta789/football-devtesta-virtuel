@@ -1,10 +1,8 @@
 import {
   getModelWeights,
   getTeamMemory,
-  getCurrentRegime,
   type ModelWeights,
 } from "./cloudLearning";
-import { getCurrentModel, getOrTrainModel } from "./supervisedModel";
 
 export const TEAMS = [
   "A. Villa",
@@ -30,10 +28,10 @@ export const TEAMS = [
 ].sort();
 
 const SCORE_PRIORS: Record<string, number> = {
-  // Draws — rééquilibrés
-  "1-1": 3.2,
-  "0-0": 1.4,
-  "2-2": 2.2,
+  // Draws — volontairement sobres: le NUL et surtout 1-1 étaient sur-prédits
+  "1-1": 1.35,
+  "0-0": 0.75,
+  "2-2": 0.85,
   "3-3": 0.15,
   // Home wins — réduits pour éviter sur-prédiction
   "1-0": 1.5,
