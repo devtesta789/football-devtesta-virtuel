@@ -559,11 +559,17 @@ export async function predict(
     }
   }
 
+  // SAFE plus restrictif : DOM ≤1.4 réel = 77%, EXT ≤1.5 = 53%
   const isSafeZone =
-    (winnerLabel === "1" && oddsHome <= 1.5 && confidence >= 55) ||
-    (winnerLabel === "2" && oddsAway <= 1.8 && confidence >= 55);
+    (winnerLabel === "1" && oddsHome <= 1.45 && confidence >= 60) ||
+    (winnerLabel === "2" && oddsAway <= 1.5 && confidence >= 60);
 
-  const risky = confidence < 45 || pNUL > 0.28;
+  // PIÈGE : zones identifiées par les données (44% precision)
+  const risky =
+    confidence < 48 ||
+    pNUL > 0.30 ||
+    (winnerLabel === "1" && oddsHome >= 1.7 && oddsHome <= 2.6) ||
+    (winnerLabel === "2" && oddsAway > 2.2);
 
   const entropy = -topScores.reduce((s, c) => s + (c.prob > 0 ? c.prob * Math.log2(c.prob) : 0), 0);
   const scoreConfidence = topScores[0]?.prob ?? 0;
