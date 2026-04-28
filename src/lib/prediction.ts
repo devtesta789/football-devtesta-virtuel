@@ -537,9 +537,10 @@ export async function predict(
   const expectedTotalForHot = lH + lA;
   const hotMatch = expectedTotalForHot > 3.0 && Math.abs(pDOM - pEXT) < 0.15;
 
+  // SAFE durci selon données réelles : DOM ≤1.45 (77%), EXT ≤1.5 (53%)
   const confidenceTier: "SAFE" | "MEDIUM" | "AGGRESSIVE" =
-    (winnerLabel === "1" && oddsHome <= 1.5 && confidence >= 55) ||
-    (winnerLabel === "2" && oddsAway <= 1.8 && confidence >= 55)
+    (winnerLabel === "1" && oddsHome <= 1.45 && confidence >= 60) ||
+    (winnerLabel === "2" && oddsAway <= 1.5 && confidence >= 60)
       ? "SAFE"
       : confidence >= 55 && !hotMatch
         ? "MEDIUM"
