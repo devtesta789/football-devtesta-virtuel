@@ -8,6 +8,7 @@ export const en = {
   tabs: {
     predict: "Predict",
     history: "History",
+    ranking: "Ranking",
     ai: "AI Dashboard",
   },
   theme: {
@@ -67,6 +68,19 @@ export const en = {
     odds: "Odds 1/X/2",
     topScores: "Top 3 predicted scores",
     vs: "vs",
+  },
+  ranking: {
+    title: "Team ranking",
+    subtitle: "Points, goals, home/away records and recent form.",
+    eventCategory: "Category",
+    refresh: "Refresh",
+    loading: "Loading ranking…",
+    error: "Unable to load ranking",
+    empty: "No played matches available.",
+    team: "Team",
+    home: "Home",
+    away: "Away",
+    form: "Form",
   },
   sync: {
     title: "Sporty-Tech Live Sync",

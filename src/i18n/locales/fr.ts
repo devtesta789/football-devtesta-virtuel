@@ -10,6 +10,7 @@ export const fr: Translations = {
   tabs: {
     predict: "Prédire",
     history: "Historique",
+    ranking: "Classement",
     ai: "Tableau IA",
   },
   theme: {
@@ -69,6 +70,19 @@ export const fr: Translations = {
     odds: "Cotes 1/X/2",
     topScores: "Top 3 scores prédits",
     vs: "vs",
+  },
+  ranking: {
+    title: "Classement des équipes",
+    subtitle: "Points, buts, domicile/extérieur et forme récente.",
+    eventCategory: "Catégorie",
+    refresh: "Actualiser",
+    loading: "Chargement du classement…",
+    error: "Impossible de charger le classement",
+    empty: "Aucun match joué disponible.",
+    team: "Équipe",
+    home: "Dom",
+    away: "Ext",
+    form: "Forme",
   },
   sync: {
     title: "Synchronisation Sporty-Tech",

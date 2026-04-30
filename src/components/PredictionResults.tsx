@@ -52,6 +52,12 @@ export function PredictionResults({ result }: Props) {
         </div>
       </div>
 
+      {result.matchTime && (
+        <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+          {new Date(result.matchTime).toLocaleString()}
+        </div>
+      )}
+
       {/* Hot/Risky tags */}
       {(result.hotMatch || result.risky) && (
         <div className="flex gap-2">

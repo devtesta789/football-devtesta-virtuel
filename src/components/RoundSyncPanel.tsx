@@ -878,6 +878,11 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
                       {m.rawHome} vs {m.rawAway} (?)
                     </span>
                   )}
+                  {m.matchTime && (
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {new Date(m.matchTime).toLocaleTimeString()}
+                    </span>
+                  )}
                 </div>
                 <span className="font-mono text-muted-foreground">
                   {m.oddsHome || "—"} · {m.oddsDraw || "—"} · {m.oddsAway || "—"}

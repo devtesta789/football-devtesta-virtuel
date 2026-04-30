@@ -3,6 +3,7 @@ import {
   getTeamMemory,
   type ModelWeights,
 } from "./cloudLearning";
+import { getTeamFormAdjustment } from "./teamRanking";
 
 export const TEAMS = [
   "A. Villa",
@@ -219,9 +220,13 @@ export async function predict(
   const homeStrength = TEAM_STRENGTH[homeTeam] ?? { overall: 0.5, home: 0.55, away: 0.45 };
   const awayStrength = TEAM_STRENGTH[awayTeam] ?? { overall: 0.5, home: 0.55, away: 0.45 };
   const venueGap = homeStrength.home - awayStrength.away;
-  const homeScore = (1 / oddsHome) * Math.exp(-0.03 + 2.22 * venueGap);
-  const awayScore = (1 / oddsAway) * Math.exp(2.22 * -venueGap);
+  let homeScore = (1 / oddsHome) * Math.exp(-0.03 + 2.22 * venueGap);
+  let awayScore = (1 / oddsAway) * Math.exp(2.22 * -venueGap);
   const drawScore = (1 / oddsDraw) * 0.55;
+
+  const formAdjustment = getTeamFormAdjustment(homeTeam, awayTeam);
+  homeScore *= formAdjustment.homeFactor;
+  awayScore *= formAdjustment.awayFactor;
   const scoreTotal = homeScore + drawScore + awayScore;
 
   pDOM = homeScore / scoreTotal;

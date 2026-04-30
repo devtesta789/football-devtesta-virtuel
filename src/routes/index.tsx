@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { MultiMatchTab, emptyMatch, type MatchEntry } from "@/components/MultiMatchTab";
 import { HistoryTab } from "@/components/HistoryTab";
 import { LearningDashboard } from "@/components/LearningDashboard";
+import { RankingTab } from "@/components/RankingTab";
 import type { PredictionResult } from "@/lib/prediction";
 import { cn } from "@/lib/utils";
 
@@ -11,7 +12,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Tab = "predict" | "history" | "ai";
+type Tab = "predict" | "history" | "ai" | "ranking";
 
 function Index() {
   const { t } = useTranslation();
@@ -31,7 +32,10 @@ function Index() {
           <TabBtn active={tab === "history"} onClick={() => setTab("history")}>
             ⏱ {t("tabs.history")}
           </TabBtn>
-          <TabBtn active={tab === "ai"} onClick={() => setTab("ai")}>
+          <TabBtn active={tab === "ranking"} onClick={() => setTab("ranking")}> 
+            🏆 {t("tabs.ranking")}
+          </TabBtn>
+          <TabBtn active={tab === "ai"} onClick={() => setTab("ai")}> 
             🧠 {t("tabs.ai")}
           </TabBtn>
         </div>
@@ -51,6 +55,7 @@ function Index() {
           />
         )}
         {tab === "history" && <HistoryTab />}
+        {tab === "ranking" && <RankingTab />}
         {tab === "ai" && <LearningDashboard />}
       </section>
 

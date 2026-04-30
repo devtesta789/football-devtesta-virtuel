@@ -303,8 +303,15 @@ export function MultiMatchTab({
                       <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
                         #{String(i + 1).padStart(2, "0")}
                       </span>
-                      <span className="text-sm font-medium text-foreground">
-                        {r.homeTeam} vs {r.awayTeam}
+                      <span className="flex flex-col text-sm font-medium text-foreground">
+                        <span>
+                          {r.homeTeam} vs {r.awayTeam}
+                        </span>
+                        {r.matchTime && (
+                          <span className="text-[11px] text-muted-foreground">
+                            {new Date(r.matchTime).toLocaleString()}
+                          </span>
+                        )}
                       </span>
                       {r.valueBet && (
                         <span
