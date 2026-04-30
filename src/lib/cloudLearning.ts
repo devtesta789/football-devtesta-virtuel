@@ -372,14 +372,25 @@ export async function getLearningStats(): Promise<LearningStats> {
     };
   }
 
-  const { data: history } = await supabase
+  const { count: totalValidated } = await supabase
     .from("prediction_history")
-    .select("*")
+    .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .eq("is_validated", true)
-    .order("created_at", { ascending: false });
+    .eq("is_validated", true);
 
-  const validated = history ?? [];
+  const validated: any[] = [];
+  const pageSize = 1000;
+  const total = totalValidated ?? 0;
+  for (let from = 0; from < total; from += pageSize) {
+    const { data: page } = await supabase
+      .from("prediction_history")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("is_validated", true)
+      .order("created_at", { ascending: false })
+      .range(from, Math.min(from + pageSize - 1, total - 1));
+    if (page) validated.push(...page);
+  }
   const correct = validated.filter((h) => {
     const rw =
       (h.real_score_home ?? 0) > (h.real_score_away ?? 0)

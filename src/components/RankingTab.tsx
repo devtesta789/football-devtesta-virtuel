@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchAllPlayedMatches, discoverCategory } from "@/lib/sportyApi";
 import { getUserConfig } from "@/lib/userConfig";
@@ -6,6 +6,7 @@ import { computeTeamStats, saveTeamStatsToStorage, type TeamStats } from "@/lib/
 import { cn } from "@/lib/utils";
 
 const LEAGUE_ID = "8035";
+const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000; // refresh every 2 minutes
 
 function formatFormIcons(recentForm: string) {
   return recentForm.split("").map((symbol, index) => {
@@ -37,38 +38,62 @@ export function RankingTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [eventCategory, setEventCategory] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
-  async function loadRanking() {
+  const resolveEventCategoryId = useCallback(async () => {
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem("sporty.eventCategoryId") : null;
+    if (stored) return stored;
+
+    const config = await getUserConfig();
+    if (config.eventCategoryId) return config.eventCategoryId;
+
+    const discovered = await discoverCategory(LEAGUE_ID);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("sporty.eventCategoryId", discovered);
+    }
+    return discovered;
+  }, []);
+
+  const loadRanking = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      let eventCategoryId = window.localStorage.getItem("sporty.eventCategoryId") || undefined;
-      if (!eventCategoryId) {
-        const config = await getUserConfig();
-        eventCategoryId = config.eventCategoryId ?? undefined;
-      }
-      if (!eventCategoryId) {
-        const discovered = await discoverCategory(LEAGUE_ID);
-        eventCategoryId = discovered;
-        window.localStorage.setItem("sporty.eventCategoryId", discovered);
+      let eventCategoryId = await resolveEventCategoryId();
+      try {
+        const currentCategoryId = await discoverCategory(LEAGUE_ID);
+        if (currentCategoryId) eventCategoryId = currentCategoryId;
+      } catch {
+        // Use the stored category if current discovery temporarily fails.
       }
 
-      setEventCategory(eventCategoryId ?? null);
-      const playedRounds = await fetchAllPlayedMatches(LEAGUE_ID, eventCategoryId || "");
+      if (typeof window !== "undefined" && eventCategoryId) {
+        window.localStorage.setItem("sporty.eventCategoryId", eventCategoryId);
+      }
+      setEventCategory(eventCategoryId);
+
+      const playedRounds = await fetchAllPlayedMatches(LEAGUE_ID, eventCategoryId);
       const allMatches = playedRounds.flatMap((round) => round.matches);
       const ranking = computeTeamStats(allMatches);
       saveTeamStatsToStorage(Object.fromEntries(ranking.map((row) => [row.teamName, row])));
       setStats(ranking);
+      setLastSyncedAt(new Date());
     } catch (err) {
       setError((err as Error)?.message ?? "Erreur de classement");
     } finally {
       setLoading(false);
     }
-  }
+  }, [resolveEventCategoryId]);
 
   useEffect(() => {
     loadRanking();
-  }, []);
+  }, [loadRanking]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadRanking();
+    }, AUTO_REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [loadRanking]);
 
   if (loading) {
     return (
@@ -103,6 +128,11 @@ export function RankingTab() {
             <div className="text-xs text-muted-foreground">
               {t("ranking.subtitle")}
             </div>
+            {lastSyncedAt ? (
+              <div className="text-[11px] text-muted-foreground">
+                Dernière synchronisation : {lastSyncedAt.toLocaleTimeString()}
+              </div>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {eventCategory && (
