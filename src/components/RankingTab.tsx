@@ -58,14 +58,7 @@ export function RankingTab() {
     setLoading(true);
     setError(null);
     try {
-      let eventCategoryId = await resolveEventCategoryId();
-      try {
-        const currentCategoryId = await discoverCategory(LEAGUE_ID);
-        if (currentCategoryId) eventCategoryId = currentCategoryId;
-      } catch {
-        // Use the stored category if current discovery temporarily fails.
-      }
-
+      const eventCategoryId = await resolveEventCategoryId();
       if (typeof window !== "undefined" && eventCategoryId) {
         window.localStorage.setItem("sporty.eventCategoryId", eventCategoryId);
       }
