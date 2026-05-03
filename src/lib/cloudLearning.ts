@@ -556,7 +556,7 @@ export async function getPredictionHistory(eventCategoryId?: string): Promise<Pr
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(10000);
+    .limit(200);
 
   if (eventCategoryId) {
     query = query.eq("event_category_id", eventCategoryId);

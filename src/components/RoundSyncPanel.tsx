@@ -405,12 +405,11 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
 
       setTrainingProgress((prev) => ({ ...prev, total: playedRounds.length }));
 
-      // Fetch all history (across all categories) to detect duplicates and validate existing predictions.
+      // Fetch all history (across all categories) to detect duplicates
       const existingHistory = await getPredictionHistory();
-      const existingMap = new Map(
-        existingHistory.map((h) => [`${h.roundNumber ?? ""}|${h.homeTeam}|${h.awayTeam}`, h]),
+      const existingSet = new Set(
+        existingHistory.map((h) => `${h.roundNumber}|${h.homeTeam}|${h.awayTeam}`),
       );
-      const existingSet = new Set(existingMap.keys());
 
       let totalImported = 0;
       let totalValidated = 0;
@@ -440,20 +439,8 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
           const roundImported: PredictionResult[] = [];
           for (const match of matches) {
             const matchKey = `${roundNum}|${match.homeTeam}|${match.awayTeam}`;
-            const existing = existingMap.get(matchKey);
-            if (existing) {
-              if (!existing.validated) {
-                await updateModelWeights(existing, {
-                  home: match.finalScoreHome!,
-                  away: match.finalScoreAway!,
-                });
-                totalValidated++;
-              }
+            if (existingSet.has(matchKey) || !match.oddsHome || !match.oddsDraw || !match.oddsAway)
               continue;
-            }
-
-            if (!match.oddsHome || !match.oddsDraw || !match.oddsAway) continue;
-
             try {
               const prediction = await predict(
                 match.homeTeam,
@@ -471,13 +458,6 @@ export function RoundSyncPanel({ setMatches, setResults, setCurrentRoundNumber }
                   matchTime: match.matchTime,
                 });
                 existingSet.add(matchKey);
-                existingMap.set(matchKey, {
-                  ...prediction,
-                  id,
-                  roundNumber: roundNum,
-                  matchTime: match.matchTime,
-                  validated: false,
-                } as PredictionResult);
               }
             } catch {
               /* skip */
