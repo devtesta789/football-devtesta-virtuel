@@ -26,7 +26,7 @@ class LogisticModel {
   private classLabels: string[] = ["1", "X", "2"];
   private trained = false;
 
-  train(examples: TrainingExample[], epochs = 500, learningRate = 0.1) {
+  train(examples: TrainingExample[], epochs = 100, learningRate = 0.1) {
     const numFeatures = 3;
     this.weights1 = Array(numFeatures).fill(0);
     this.weightsX = Array(numFeatures).fill(0);
@@ -35,7 +35,13 @@ class LogisticModel {
     this.biasX = 0;
     this.bias2 = 0;
 
+    let bestLoss: number | null = null;
+    let patience = 5;
+    const minLossDelta = 1e-6;
+
     for (let epoch = 0; epoch < epochs; epoch++) {
+      let epochLoss = 0;
+
       for (const { features, winnerLabel } of examples) {
         const z1 = this.bias1 + features.reduce((s, f, i) => s + f * this.weights1[i], 0);
         const zX = this.biasX + features.reduce((s, f, i) => s + f * this.weightsX[i], 0);
@@ -46,6 +52,7 @@ class LogisticModel {
         const y = [0, 0, 0];
         const targetIndex = this.classLabels.indexOf(winnerLabel);
         if (targetIndex >= 0) y[targetIndex] = 1;
+        epochLoss -= Math.log(Math.max(1e-15, probs[targetIndex]));
 
         for (let i = 0; i < numFeatures; i++) {
           this.weights1[i] -= learningRate * (probs[0] - y[0]) * features[i];
@@ -55,6 +62,14 @@ class LogisticModel {
         this.bias1 -= learningRate * (probs[0] - y[0]);
         this.biasX -= learningRate * (probs[1] - y[1]);
         this.bias2 -= learningRate * (probs[2] - y[2]);
+      }
+
+      if (bestLoss === null || epochLoss + minLossDelta < bestLoss) {
+        bestLoss = epochLoss;
+        patience = 5;
+      } else {
+        patience -= 1;
+        if (patience <= 0) break;
       }
     }
     this.trained = true;
