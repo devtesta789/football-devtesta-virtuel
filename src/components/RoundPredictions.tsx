@@ -44,6 +44,7 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
   const [catInput, setCatInput] = useState(categoryId);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
+  const [alreadyPredicted, setAlreadyPredicted] = useState(false);
 
   // Init category: prefer cloud config, fall back to localStorage / discovery
   useEffect(() => {
