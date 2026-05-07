@@ -229,11 +229,28 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
             type="button"
             onClick={() => loadAndPredict(round, categoryId)}
             disabled={loading}
-            className="flex items-center gap-1 border border-cyan bg-cyan/10 px-2 py-1 font-mono text-xs uppercase tracking-widest text-cyan hover:bg-cyan/20 disabled:opacity-40"
+            className={cn(
+              "flex items-center gap-1 border px-2 py-1 font-mono text-xs uppercase tracking-widest hover:bg-cyan/20 disabled:opacity-40",
+              alreadyPredicted
+                ? "border-lime bg-lime/10 text-lime"
+                : "border-cyan bg-cyan/10 text-cyan",
+            )}
           >
             <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
-            {loading ? "Chargement…" : "Charger"}
+            {loading ? "Chargement…" : alreadyPredicted ? "Déjà prédit" : "Charger"}
           </button>
+          {alreadyPredicted && (
+            <button
+              type="button"
+              onClick={() => loadAndPredict(round, categoryId, true)}
+              disabled={loading}
+              className="flex items-center gap-1 border border-warn bg-warn/10 px-2 py-1 font-mono text-xs uppercase tracking-widest text-warn hover:bg-warn/20 disabled:opacity-40"
+              title="Forcer le recalcul"
+            >
+              <RotateCw className={cn("h-3 w-3", loading && "animate-spin")} />
+              Re-prédire
+            </button>
+          )}
 
           <div className="ml-auto flex items-center gap-2">
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
