@@ -5,6 +5,7 @@ import { MultiMatchTab, emptyMatch, type MatchEntry } from "@/components/MultiMa
 import { HistoryTab } from "@/components/HistoryTab";
 import { LearningDashboard } from "@/components/LearningDashboard";
 import { RankingTab } from "@/components/RankingTab";
+import { RoundPredictions } from "@/components/RoundPredictions";
 import type { PredictionResult } from "@/lib/prediction";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +13,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Tab = "predict" | "history" | "ai" | "ranking";
+type Tab = "predict" | "advanced" | "history" | "ai" | "ranking";
 
 function Index() {
   const { t } = useTranslation();
@@ -25,17 +26,20 @@ function Index() {
   return (
     <div className="space-y-4">
       <nav className="border-b border-border">
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           <TabBtn active={tab === "predict"} onClick={() => setTab("predict")}>
             🎯 {t("tabs.predict")}
+          </TabBtn>
+          <TabBtn active={tab === "advanced"} onClick={() => setTab("advanced")}>
+            ⚙️ Avancé
           </TabBtn>
           <TabBtn active={tab === "history"} onClick={() => setTab("history")}>
             ⏱ {t("tabs.history")}
           </TabBtn>
-          <TabBtn active={tab === "ranking"} onClick={() => setTab("ranking")}> 
+          <TabBtn active={tab === "ranking"} onClick={() => setTab("ranking")}>
             🏆 {t("tabs.ranking")}
           </TabBtn>
-          <TabBtn active={tab === "ai"} onClick={() => setTab("ai")}> 
+          <TabBtn active={tab === "ai"} onClick={() => setTab("ai")}>
             🧠 {t("tabs.ai")}
           </TabBtn>
         </div>
@@ -43,6 +47,9 @@ function Index() {
 
       <section>
         {tab === "predict" && (
+          <RoundPredictions onToggleAdvanced={() => setTab("advanced")} />
+        )}
+        {tab === "advanced" && (
           <MultiMatchTab
             matches={matches}
             setMatches={setMatches}

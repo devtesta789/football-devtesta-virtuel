@@ -321,6 +321,13 @@ export async function fetchRound(
   return { matches, eventCategoryId: env.eventCategoryId ?? eventCategoryId ?? "" };
 }
 
+export function formatMatchTime(iso: string | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
 export interface RoundStatus {
   round: number;
   total: number;
