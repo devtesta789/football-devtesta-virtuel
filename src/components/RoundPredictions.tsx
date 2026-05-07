@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, RefreshCw, Settings2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, RotateCw, Settings2 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   fetchRound,
@@ -8,7 +8,11 @@ import {
   type SportyMatch,
 } from "@/lib/sportyApi";
 import { predict, type PredictionResult } from "@/lib/prediction";
-import { savePrediction } from "@/lib/cloudLearning";
+import {
+  savePrediction,
+  getPredictionHistory,
+  updateModelWeights,
+} from "@/lib/cloudLearning";
 import { getUserConfig, setEventCategoryId as persistEventCategoryId } from "@/lib/userConfig";
 import { MatchPredictionCard } from "./MatchPredictionCard";
 import { cn } from "@/lib/utils";
