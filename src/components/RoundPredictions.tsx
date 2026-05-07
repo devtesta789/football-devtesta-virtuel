@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, RefreshCw, Settings2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, RotateCw, Settings2 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   fetchRound,
@@ -8,7 +8,11 @@ import {
   type SportyMatch,
 } from "@/lib/sportyApi";
 import { predict, type PredictionResult } from "@/lib/prediction";
-import { savePrediction } from "@/lib/cloudLearning";
+import {
+  savePrediction,
+  getPredictionHistory,
+  updateModelWeights,
+} from "@/lib/cloudLearning";
 import { getUserConfig, setEventCategoryId as persistEventCategoryId } from "@/lib/userConfig";
 import { MatchPredictionCard } from "./MatchPredictionCard";
 import { cn } from "@/lib/utils";
@@ -40,6 +44,7 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
   const [catInput, setCatInput] = useState(categoryId);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
+  const [alreadyPredicted, setAlreadyPredicted] = useState(false);
 
   // Init category: prefer cloud config, fall back to localStorage / discovery
   useEffect(() => {
@@ -68,8 +73,9 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
   }, []);
 
   const loadAndPredict = useCallback(
-    async (r: number, cat: string) => {
+    async (r: number, cat: string, forceRecompute = false) => {
       setLoading(true);
+      setAlreadyPredicted(false);
       try {
         const { matches, eventCategoryId: discovered } = await fetchRound(
           LEAGUE_ID,
@@ -83,24 +89,67 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
         }
         const usedCat = cat || discovered;
 
-        const limited = matches.slice(0, 10);
-        const computed: Row[] = await Promise.all(
-          limited.map(async (m) => {
-            const oh = parseFloat(m.oddsHome);
-            const od = parseFloat(m.oddsDraw);
-            const oa = parseFloat(m.oddsAway);
-            if (!oh || !od || !oa) return { match: m, prediction: null };
-            try {
-              const prediction = await predict(m.homeTeam, m.awayTeam, oh, od, oa);
-              // Save silently for learning
-              savePrediction(prediction, r, m.matchTime, usedCat).catch(() => {});
-              return { match: m, prediction };
-            } catch {
-              return { match: m, prediction: null };
-            }
-          }),
-        );
+        // Ensure each match has a matchTime so the countdown can render
+        const nowIso = new Date().toISOString();
+        const limited = matches.slice(0, 10).map((m) => ({
+          ...m,
+          matchTime: m.matchTime || nowIso,
+        }));
+
+        // Reuse existing predictions for this round if any
+        let computed: Row[] = [];
+        const existing = await getPredictionHistory(usedCat).catch(() => []);
+        const existingForRound = existing.filter((p) => p.roundNumber === r);
+
+        if (existingForRound.length > 0 && !forceRecompute) {
+          computed = limited.map((m) => {
+            const pred =
+              existingForRound.find(
+                (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
+              ) ?? null;
+            return { match: m, prediction: pred };
+          });
+          setAlreadyPredicted(true);
+        } else {
+          computed = await Promise.all(
+            limited.map(async (m) => {
+              const oh = parseFloat(m.oddsHome);
+              const od = parseFloat(m.oddsDraw);
+              const oa = parseFloat(m.oddsAway);
+              if (!oh || !od || !oa) return { match: m, prediction: null };
+              try {
+                const prediction = await predict(m.homeTeam, m.awayTeam, oh, od, oa);
+                savePrediction(prediction, r, m.matchTime, usedCat).catch(() => {});
+                return { match: m, prediction };
+              } catch {
+                return { match: m, prediction: null };
+              }
+            }),
+          );
+        }
+
         setRows(computed);
+
+        // Silent auto-validation for played matches with un-validated predictions
+        for (const row of computed) {
+          if (
+            row.match.played &&
+            row.prediction &&
+            !row.prediction.validated &&
+            typeof row.match.finalScoreHome === "number" &&
+            typeof row.match.finalScoreAway === "number"
+          ) {
+            updateModelWeights(row.prediction, {
+              home: row.match.finalScoreHome,
+              away: row.match.finalScoreAway,
+            })
+              .then(() => {
+                row.prediction!.validated = true;
+              })
+              .catch(() => {});
+          }
+        }
+
         if (computed.length === 0) {
           toast.error("Aucun match trouvé pour ce round");
         }
@@ -180,11 +229,28 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
             type="button"
             onClick={() => loadAndPredict(round, categoryId)}
             disabled={loading}
-            className="flex items-center gap-1 border border-cyan bg-cyan/10 px-2 py-1 font-mono text-xs uppercase tracking-widest text-cyan hover:bg-cyan/20 disabled:opacity-40"
+            className={cn(
+              "flex items-center gap-1 border px-2 py-1 font-mono text-xs uppercase tracking-widest hover:bg-cyan/20 disabled:opacity-40",
+              alreadyPredicted
+                ? "border-lime bg-lime/10 text-lime"
+                : "border-cyan bg-cyan/10 text-cyan",
+            )}
           >
             <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
-            {loading ? "Chargement…" : "Charger"}
+            {loading ? "Chargement…" : alreadyPredicted ? "Déjà prédit" : "Charger"}
           </button>
+          {alreadyPredicted && (
+            <button
+              type="button"
+              onClick={() => loadAndPredict(round, categoryId, true)}
+              disabled={loading}
+              className="flex items-center gap-1 border border-warn bg-warn/10 px-2 py-1 font-mono text-xs uppercase tracking-widest text-warn hover:bg-warn/20 disabled:opacity-40"
+              title="Forcer le recalcul"
+            >
+              <RotateCw className={cn("h-3 w-3", loading && "animate-spin")} />
+              Re-prédire
+            </button>
+          )}
 
           <div className="ml-auto flex items-center gap-2">
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">

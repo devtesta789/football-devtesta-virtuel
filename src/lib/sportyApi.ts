@@ -222,8 +222,12 @@ export function combineRoundData(
   roundNumber?: number | string,
   useCache = true,
 ): SportyMatch[] {
-  const md = matchesJson as { round?: { matches?: ApiEvent[] } } | null;
+  const md = matchesJson as {
+    round?: { matches?: ApiEvent[]; expectedStart?: string; startDate?: string };
+  } | null;
   const events = md?.round?.matches ?? [];
+  const rs = md?.round?.expectedStart ?? md?.round?.startDate;
+  const roundStart = rs && !rs.startsWith("0001") ? rs : undefined;
 
   const pd = playoutJson as { matches?: ApiPlayoutMatch[] } | null;
   const playoutMap = new Map<number, ApiGoal[]>();
@@ -271,7 +275,8 @@ export function combineRoundData(
       finalScoreHome: score?.h,
       finalScoreAway: score?.a,
       played: !!score,
-      matchTime: ev.startDate,
+      matchTime:
+        ev.startDate && !ev.startDate.startsWith("0001") ? ev.startDate : roundStart,
     });
   }
   return out;
