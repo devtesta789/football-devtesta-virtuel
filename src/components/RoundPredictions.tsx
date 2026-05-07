@@ -73,8 +73,9 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
   }, []);
 
   const loadAndPredict = useCallback(
-    async (r: number, cat: string) => {
+    async (r: number, cat: string, forceRecompute = false) => {
       setLoading(true);
+      setAlreadyPredicted(false);
       try {
         const { matches, eventCategoryId: discovered } = await fetchRound(
           LEAGUE_ID,
@@ -88,24 +89,67 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
         }
         const usedCat = cat || discovered;
 
-        const limited = matches.slice(0, 10);
-        const computed: Row[] = await Promise.all(
-          limited.map(async (m) => {
-            const oh = parseFloat(m.oddsHome);
-            const od = parseFloat(m.oddsDraw);
-            const oa = parseFloat(m.oddsAway);
-            if (!oh || !od || !oa) return { match: m, prediction: null };
-            try {
-              const prediction = await predict(m.homeTeam, m.awayTeam, oh, od, oa);
-              // Save silently for learning
-              savePrediction(prediction, r, m.matchTime, usedCat).catch(() => {});
-              return { match: m, prediction };
-            } catch {
-              return { match: m, prediction: null };
-            }
-          }),
-        );
+        // Ensure each match has a matchTime so the countdown can render
+        const nowIso = new Date().toISOString();
+        const limited = matches.slice(0, 10).map((m) => ({
+          ...m,
+          matchTime: m.matchTime || nowIso,
+        }));
+
+        // Reuse existing predictions for this round if any
+        let computed: Row[] = [];
+        const existing = await getPredictionHistory(usedCat).catch(() => []);
+        const existingForRound = existing.filter((p) => p.roundNumber === r);
+
+        if (existingForRound.length > 0 && !forceRecompute) {
+          computed = limited.map((m) => {
+            const pred =
+              existingForRound.find(
+                (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
+              ) ?? null;
+            return { match: m, prediction: pred };
+          });
+          setAlreadyPredicted(true);
+        } else {
+          computed = await Promise.all(
+            limited.map(async (m) => {
+              const oh = parseFloat(m.oddsHome);
+              const od = parseFloat(m.oddsDraw);
+              const oa = parseFloat(m.oddsAway);
+              if (!oh || !od || !oa) return { match: m, prediction: null };
+              try {
+                const prediction = await predict(m.homeTeam, m.awayTeam, oh, od, oa);
+                savePrediction(prediction, r, m.matchTime, usedCat).catch(() => {});
+                return { match: m, prediction };
+              } catch {
+                return { match: m, prediction: null };
+              }
+            }),
+          );
+        }
+
         setRows(computed);
+
+        // Silent auto-validation for played matches with un-validated predictions
+        for (const row of computed) {
+          if (
+            row.match.played &&
+            row.prediction &&
+            !row.prediction.validated &&
+            typeof row.match.finalScoreHome === "number" &&
+            typeof row.match.finalScoreAway === "number"
+          ) {
+            updateModelWeights(row.prediction, {
+              home: row.match.finalScoreHome,
+              away: row.match.finalScoreAway,
+            })
+              .then(() => {
+                row.prediction!.validated = true;
+              })
+              .catch(() => {});
+          }
+        }
+
         if (computed.length === 0) {
           toast.error("Aucun match trouvé pour ce round");
         }
