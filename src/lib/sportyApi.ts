@@ -275,7 +275,8 @@ export function combineRoundData(
       finalScoreHome: score?.h,
       finalScoreAway: score?.a,
       played: !!score,
-      matchTime: ev.startDate,
+      matchTime:
+        ev.startDate && !ev.startDate.startsWith("0001") ? ev.startDate : roundStart,
     });
   }
   return out;
