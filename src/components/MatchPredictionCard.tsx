@@ -3,13 +3,16 @@ import { cn } from "@/lib/utils";
 import type { PredictionResult } from "@/lib/prediction";
 import type { SportyMatch } from "@/lib/sportyApi";
 import { formatMatchTime } from "@/lib/sportyApi";
+import { trendSymbol, type TeamOddsHistory } from "@/lib/rankings";
 
 interface Props {
   match: SportyMatch;
   prediction: PredictionResult | null;
+  homeTrend?: TeamOddsHistory;
+  awayTrend?: TeamOddsHistory;
 }
 
-export function MatchPredictionCard({ match, prediction }: Props) {
+export function MatchPredictionCard({ match, prediction, homeTrend, awayTrend }: Props) {
   const time = formatMatchTime(match.matchTime);
   const finalStr =
     typeof match.finalScoreHome === "number" && typeof match.finalScoreAway === "number"
@@ -101,6 +104,36 @@ export function MatchPredictionCard({ match, prediction }: Props) {
               💎 Value bet : {prediction.valueBetMarket}
             </div>
           )}
+          {(homeTrend || awayTrend) &&
+            ((homeTrend && homeTrend.trend !== "stable") ||
+              (awayTrend && awayTrend.trend !== "stable")) && (
+              <div className="mt-2 border-t border-border pt-2 font-mono text-[10px] text-muted-foreground">
+                📊{" "}
+                {homeTrend && (
+                  <span
+                    className={cn(
+                      homeTrend.trend === "down" && "text-lime",
+                      homeTrend.trend === "up" && "text-warn",
+                    )}
+                  >
+                    {match.homeTeam} {trendSymbol(homeTrend.trend)} (
+                    {homeTrend.prev.toFixed(2)} → {homeTrend.last.toFixed(2)})
+                  </span>
+                )}
+                {homeTrend && awayTrend && " · "}
+                {awayTrend && (
+                  <span
+                    className={cn(
+                      awayTrend.trend === "down" && "text-lime",
+                      awayTrend.trend === "up" && "text-warn",
+                    )}
+                  >
+                    {match.awayTeam} {trendSymbol(awayTrend.trend)} (
+                    {awayTrend.prev.toFixed(2)} → {awayTrend.last.toFixed(2)})
+                  </span>
+                )}
+              </div>
+            )}
         </div>
       )}
 

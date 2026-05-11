@@ -200,6 +200,11 @@ function getScoreBonuses(homeOdds: number): { b10: number; b01: number; b20: num
   return { b10: 1, b01: 1, b20: 1, b30: 1 };
 }
 
+export interface OddsTrendInput {
+  home?: "up" | "down" | "stable";
+  away?: "up" | "down" | "stable";
+}
+
 export async function predict(
   homeTeam: string,
   awayTeam: string,
@@ -208,6 +213,7 @@ export async function predict(
   oddsAway: number,
   winPenaltyFactor = 1,
   nulBonusFactor = 1,
+  trends: OddsTrendInput = {},
 ): Promise<PredictionResult> {
   const weights: ModelWeights = await getModelWeights();
 
@@ -227,6 +233,13 @@ export async function predict(
   const formAdjustment = getTeamFormAdjustment(homeTeam, awayTeam);
   homeScore *= formAdjustment.homeFactor;
   awayScore *= formAdjustment.awayFactor;
+
+  // Ajustement tendance des cotes (cote qui baisse = équipe qui monte en puissance)
+  const trendBoost = (t?: "up" | "down" | "stable") =>
+    t === "down" ? 1.07 : t === "up" ? 0.94 : 1;
+  homeScore *= trendBoost(trends.home);
+  awayScore *= trendBoost(trends.away);
+
   const scoreTotal = homeScore + drawScore + awayScore;
 
   pDOM = homeScore / scoreTotal;

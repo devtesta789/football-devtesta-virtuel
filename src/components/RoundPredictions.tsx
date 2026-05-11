@@ -13,6 +13,7 @@ import {
   getPredictionHistory,
   updateModelWeights,
 } from "@/lib/cloudLearning";
+import { buildOddsHistory, type TeamOddsHistory } from "@/lib/rankings";
 import { getUserConfig, setEventCategoryId as persistEventCategoryId } from "@/lib/userConfig";
 import { MatchPredictionCard } from "./MatchPredictionCard";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,8 @@ const TOTAL_ROUNDS = 38;
 interface Row {
   match: SportyMatch;
   prediction: PredictionResult | null;
+  homeTrend?: TeamOddsHistory;
+  awayTrend?: TeamOddsHistory;
 }
 
 interface Props {
@@ -101,13 +104,22 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
         const existing = await getPredictionHistory(usedCat).catch(() => []);
         const existingForRound = existing.filter((p) => p.roundNumber === r);
 
+        // Historique des cotes basé sur les rounds antérieurs (exclut le round courant)
+        const historyForTrends = existing.filter((p) => (p.roundNumber ?? 0) < r);
+        const oddsHistory = buildOddsHistory(historyForTrends);
+
         if (existingForRound.length > 0 && !forceRecompute) {
           computed = limited.map((m) => {
             const pred =
               existingForRound.find(
                 (p) => p.homeTeam === m.homeTeam && p.awayTeam === m.awayTeam,
               ) ?? null;
-            return { match: m, prediction: pred };
+            return {
+              match: m,
+              prediction: pred,
+              homeTrend: oddsHistory[m.homeTeam],
+              awayTrend: oddsHistory[m.awayTeam],
+            };
           });
           setAlreadyPredicted(true);
         } else {
@@ -116,13 +128,19 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
               const oh = parseFloat(m.oddsHome);
               const od = parseFloat(m.oddsDraw);
               const oa = parseFloat(m.oddsAway);
-              if (!oh || !od || !oa) return { match: m, prediction: null };
+              const homeTrend = oddsHistory[m.homeTeam];
+              const awayTrend = oddsHistory[m.awayTeam];
+              if (!oh || !od || !oa)
+                return { match: m, prediction: null, homeTrend, awayTrend };
               try {
-                const prediction = await predict(m.homeTeam, m.awayTeam, oh, od, oa);
+                const prediction = await predict(m.homeTeam, m.awayTeam, oh, od, oa, 1, 1, {
+                  home: homeTrend?.trend,
+                  away: awayTrend?.trend,
+                });
                 savePrediction(prediction, r, m.matchTime, usedCat).catch(() => {});
-                return { match: m, prediction };
+                return { match: m, prediction, homeTrend, awayTrend };
               } catch {
-                return { match: m, prediction: null };
+                return { match: m, prediction: null, homeTrend, awayTrend };
               }
             }),
           );
@@ -330,7 +348,13 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {rows.map((r, i) => (
-            <MatchPredictionCard key={i} match={r.match} prediction={r.prediction} />
+            <MatchPredictionCard
+              key={i}
+              match={r.match}
+              prediction={r.prediction}
+              homeTrend={r.homeTrend}
+              awayTrend={r.awayTrend}
+            />
           ))}
         </div>
       )}
