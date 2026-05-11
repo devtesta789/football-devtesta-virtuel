@@ -104,6 +104,36 @@ export function MatchPredictionCard({ match, prediction, homeTrend, awayTrend }:
               💎 Value bet : {prediction.valueBetMarket}
             </div>
           )}
+          {(homeTrend || awayTrend) &&
+            ((homeTrend && homeTrend.trend !== "stable") ||
+              (awayTrend && awayTrend.trend !== "stable")) && (
+              <div className="mt-2 border-t border-border pt-2 font-mono text-[10px] text-muted-foreground">
+                📊{" "}
+                {homeTrend && (
+                  <span
+                    className={cn(
+                      homeTrend.trend === "down" && "text-lime",
+                      homeTrend.trend === "up" && "text-warn",
+                    )}
+                  >
+                    {match.homeTeam} {trendSymbol(homeTrend.trend)} (
+                    {homeTrend.prev.toFixed(2)} → {homeTrend.last.toFixed(2)})
+                  </span>
+                )}
+                {homeTrend && awayTrend && " · "}
+                {awayTrend && (
+                  <span
+                    className={cn(
+                      awayTrend.trend === "down" && "text-lime",
+                      awayTrend.trend === "up" && "text-warn",
+                    )}
+                  >
+                    {match.awayTeam} {trendSymbol(awayTrend.trend)} (
+                    {awayTrend.prev.toFixed(2)} → {awayTrend.last.toFixed(2)})
+                  </span>
+                )}
+              </div>
+            )}
         </div>
       )}
 
