@@ -348,7 +348,13 @@ export function RoundPredictions({ onToggleAdvanced, showAdvancedButton = true }
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {rows.map((r, i) => (
-            <MatchPredictionCard key={i} match={r.match} prediction={r.prediction} />
+            <MatchPredictionCard
+              key={i}
+              match={r.match}
+              prediction={r.prediction}
+              homeTrend={r.homeTrend}
+              awayTrend={r.awayTrend}
+            />
           ))}
         </div>
       )}
