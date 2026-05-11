@@ -233,6 +233,13 @@ export async function predict(
   const formAdjustment = getTeamFormAdjustment(homeTeam, awayTeam);
   homeScore *= formAdjustment.homeFactor;
   awayScore *= formAdjustment.awayFactor;
+
+  // Ajustement tendance des cotes (cote qui baisse = équipe qui monte en puissance)
+  const trendBoost = (t?: "up" | "down" | "stable") =>
+    t === "down" ? 1.07 : t === "up" ? 0.94 : 1;
+  homeScore *= trendBoost(trends.home);
+  awayScore *= trendBoost(trends.away);
+
   const scoreTotal = homeScore + drawScore + awayScore;
 
   pDOM = homeScore / scoreTotal;
