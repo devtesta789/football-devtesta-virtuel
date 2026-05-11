@@ -12,7 +12,7 @@ interface Props {
   awayTrend?: TeamOddsHistory;
 }
 
-export function MatchPredictionCard({ match, prediction }: Props) {
+export function MatchPredictionCard({ match, prediction, homeTrend, awayTrend }: Props) {
   const time = formatMatchTime(match.matchTime);
   const finalStr =
     typeof match.finalScoreHome === "number" && typeof match.finalScoreAway === "number"
