@@ -3,10 +3,13 @@ import { cn } from "@/lib/utils";
 import type { PredictionResult } from "@/lib/prediction";
 import type { SportyMatch } from "@/lib/sportyApi";
 import { formatMatchTime } from "@/lib/sportyApi";
+import { trendSymbol, type TeamOddsHistory } from "@/lib/rankings";
 
 interface Props {
   match: SportyMatch;
   prediction: PredictionResult | null;
+  homeTrend?: TeamOddsHistory;
+  awayTrend?: TeamOddsHistory;
 }
 
 export function MatchPredictionCard({ match, prediction }: Props) {
