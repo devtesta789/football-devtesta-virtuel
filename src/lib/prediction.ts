@@ -200,6 +200,11 @@ function getScoreBonuses(homeOdds: number): { b10: number; b01: number; b20: num
   return { b10: 1, b01: 1, b20: 1, b30: 1 };
 }
 
+export interface OddsTrendInput {
+  home?: "up" | "down" | "stable";
+  away?: "up" | "down" | "stable";
+}
+
 export async function predict(
   homeTeam: string,
   awayTeam: string,
@@ -208,6 +213,7 @@ export async function predict(
   oddsAway: number,
   winPenaltyFactor = 1,
   nulBonusFactor = 1,
+  trends: OddsTrendInput = {},
 ): Promise<PredictionResult> {
   const weights: ModelWeights = await getModelWeights();
 
