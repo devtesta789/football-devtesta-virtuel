@@ -13,6 +13,7 @@ import {
   getPredictionHistory,
   updateModelWeights,
 } from "@/lib/cloudLearning";
+import { buildOddsHistory, type TeamOddsHistory } from "@/lib/rankings";
 import { getUserConfig, setEventCategoryId as persistEventCategoryId } from "@/lib/userConfig";
 import { MatchPredictionCard } from "./MatchPredictionCard";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,8 @@ const TOTAL_ROUNDS = 38;
 interface Row {
   match: SportyMatch;
   prediction: PredictionResult | null;
+  homeTrend?: TeamOddsHistory;
+  awayTrend?: TeamOddsHistory;
 }
 
 interface Props {
